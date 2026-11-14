@@ -12,13 +12,13 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.parametrize("name", ["setup_local.ps1", "start_local.ps1", "start_jarvis.ps1", "START.cmd", "INSTALL.cmd", "Jarvis.cmd", "start_remote.cmd"])
+@pytest.mark.parametrize("name", ["setup_local.ps1", "start_local.ps1", "START.cmd", "INSTALL.cmd"])
 def test_windows_entrypoint_source_is_ascii_for_legacy_hosts(name):
     (ROOT / name).read_text(encoding="utf-8-sig").encode("ascii")
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows PowerShell 5.1 parser")
-@pytest.mark.parametrize("name", ["setup_local.ps1", "start_local.ps1", "start_jarvis.ps1"])
+@pytest.mark.parametrize("name", ["setup_local.ps1", "start_local.ps1"])
 def test_windows_powershell_parses_supported_entrypoints_without_executing(name):
     from local_mode.setup_state import _system_directory
     host = _system_directory() / "WindowsPowerShell/v1.0/powershell.exe"

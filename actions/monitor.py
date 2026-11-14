@@ -1,7 +1,7 @@
 # actions/monitor.py
 # Jarvis — PC monitoring alerts (CPU / RAM / battery / disk thresholds)
 #
-# Rules are stored in config/monitor.json. A background loop in main.py calls
+# Rules are stored in config/monitor.json. A background loop in the assistant runtime calls
 # check_rules() every N seconds and speaks + pushes any newly-triggered alert
 # to the connected phone.
 

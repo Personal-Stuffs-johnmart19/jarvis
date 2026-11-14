@@ -49,7 +49,7 @@
   border-radius: 0.65rem;
   background: var(--field, var(--card));
   /* Portalled options need an opaque surface, including translucent glass themes. */
-  background: rgb(from var(--field, var(--card)) r g b);
+  background: rgb(from var(--field, var(--card)) r g b / 1);
   box-shadow: var(--shadow);
   font-family: inherit;
   font-size: 0.8rem;
