@@ -68,7 +68,6 @@ terax-cli = { path = "crates/terax-cli" }
 proptest = "1"
 tokio = { version = "1", features = ["macros", "rt", "test-util", "time"] }
 tempfile = "3"
-wasmparser = { version = "=0.263.0", default-features = false, features = ["std", "validate", "features", "simd"] }
 sysinfo = { version = "=0.40.1", default-features = false, features = ["system"] }
 
 [target.'cfg(unix)'.dependencies]
