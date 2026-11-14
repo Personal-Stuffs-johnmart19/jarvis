@@ -158,7 +158,7 @@ def _list_status(cfg: dict) -> str:
 
 
 def smart_home_control(action: str = "status", device: str = None, value=None) -> str:
-    """Public entry point called from main.py tool dispatch."""
+    """Public entry point called from the assistant runtime tool dispatch."""
     cfg = _load_config()
 
     if not cfg.get("enabled", True):

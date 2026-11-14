@@ -4,6 +4,9 @@ param(
     [switch]$Launch
 )
 $ErrorActionPreference = 'Stop'
+if ($args.Count -gt 0) {
+    throw 'Unsupported setup arguments. Use -Python and -NonInteractive with INSTALL.cmd. Use START.cmd for runtime options such as --remote or --model.'
+}
 $OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Push-Location $PSScriptRoot

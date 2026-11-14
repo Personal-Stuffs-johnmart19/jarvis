@@ -223,7 +223,7 @@ def wake_word(
 
     if action == "start":
         if engine is _matcher and not engine._on_detect and _service._on_detect:
-            # reuse the callback main.py already wired on the jarvis engine
+            # reuse the callback the assistant runtime already wired on the jarvis engine
             engine.configure(on_detect=_service._on_detect)
         return engine.start()
     if action == "stop":

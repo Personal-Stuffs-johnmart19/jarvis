@@ -298,7 +298,7 @@ class BluetoothBridge:
 
     # ── transcript forwarding: jarvis reply → response with pending id ──────
     async def forward_transcript(self, role: str, text: str):
-        """Called by main.py when a turn completes so the phone gets the reply."""
+        """Forward a completed assistant turn to connected remote clients."""
         async with self._clients_lock:
             clients = list(self._clients)
         for client in clients:

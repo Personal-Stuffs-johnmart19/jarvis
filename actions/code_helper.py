@@ -507,7 +507,7 @@ def code_helper(
     speak=None
 ) -> str | dict:
     """
-    Called from main.py.
+    Called from the assistant runtime.
 
     parameters:
         action      : write | edit | explain | run | build | screen_debug | optimize | auto

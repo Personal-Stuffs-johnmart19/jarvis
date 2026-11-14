@@ -10,7 +10,7 @@
 #   - high CPU temperature (when available)    -> speak + toast
 #   - backup overdue                          -> speak + toast
 #
-# The background loop in main.py calls check_guardian() every interval and
+# The background loop in the assistant runtime calls check_guardian() every interval and
 # speaks + pushes any newly-fired alert. Alerts are rate-limited per key so
 # they do not spam (default cooldown 1 hour).
 
@@ -196,7 +196,7 @@ def _mark_fired(cfg: dict, key: str) -> None:
 
 def check_guardian() -> list[str]:
     """Return alert texts for newly-crossed health conditions. Called from the
-    background monitor loop in main.py."""
+    background monitor loop in the assistant runtime."""
     cfg = _load()
     if not cfg.get("enabled"):
         return []

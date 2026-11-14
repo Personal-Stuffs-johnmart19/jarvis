@@ -1,6 +1,8 @@
 # CLI, environment and diagnostics
 
-Use **START.cmd** / **Jarvis.cmd** for the desktop. The optional Python CLI has its own supported model/options boundary; it must not be mistaken for the complete desktop provider catalog. See `local_mode/cli.py --help` through the launch wrapper for the current options.
+Use **START.cmd** for the desktop. The optional Python CLI has its own supported model/options boundary; it must not be mistaken for the complete desktop provider catalog. See `local_mode/cli.py --help` through the launch wrapper for the current options.
+
+For optional Bluetooth input, run `START.cmd --remote` or set `JARVIS_BLUETOOTH=1` before launching. Telegram continues to use its configured environment/credential settings. These options do not require a separate remote launcher. Use the console route below for interactive input and diagnostic output.
 
 ## Commands
 

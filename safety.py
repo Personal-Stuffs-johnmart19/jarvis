@@ -7,7 +7,7 @@ Single source of truth for:
   * a short human-readable description of what an action will do
   * sanitizing sensitive args before they reach logs / UI / remote bridge
 
-The confirmation gate itself lives in main.py (_execute_tool / _dispatch_tool),
+The shared assistant runtime owns the confirmation gate,
 but every decision about risk lives HERE, so a tool can never be gated by
 ad-hoc per-tool logic. Extend TOOL_RISK / _ACTION_RISK instead of scattering
 checks across the codebase.

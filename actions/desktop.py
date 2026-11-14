@@ -209,7 +209,7 @@ def desktop_control(
     session_memory=None
 ) -> str:
     """
-    Called from main.py.
+    Called from the assistant runtime.
 
     parameters:
         action      : wallpaper | wallpaper_url | current_wallpaper |

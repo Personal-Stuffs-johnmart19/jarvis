@@ -40,7 +40,7 @@ export async function rpc<T = any>(
   if (isTauri()) return invoke<T>("backend", { method, params });
   if (window.__JARVIS_RPC__) return window.__JARVIS_RPC__(method, params);
   throw new Error(
-    t("Launch Jarvis via Jarvis.cmd. Browser view is not connected to Python."),
+    t("Launch Jarvis via START.cmd. Browser view is not connected to Python."),
   );
 }
 export async function subscribe(callback: (event: BackendEvent) => void) {

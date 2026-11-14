@@ -6,7 +6,7 @@ A Windows desktop assistant with shared chat, files, editor, terminals, tools an
 
 1. Keep the checkout in a permanent folder.
 2. Run **INSTALL.cmd** for first-time setup.
-3. Launch **START.cmd** or **Jarvis.cmd**.
+3. Launch **START.cmd**.
 4. Configure credentials/endpoints in **Settings → Integrations**, then select a model in **Models & Providers**.
 5. Configure speech separately in **Speech & Voice**. The camera is optional and off by default.
 
