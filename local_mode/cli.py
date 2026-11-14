@@ -37,7 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--browser", choices=["chrome", "msedge", "chromium"], default=None)
     parser.add_argument("--microphone", type=int, default=None)
     parser.add_argument("--hold", action="store_true", help="Keep the process and media session alive until Ctrl+C after one command")
-    parser.add_argument("--remote", action="store_true", help="Enable Bluetooth for the Android client")
+    parser.add_argument("--remote", action="store_true", help="Enable the optional Bluetooth client transport")
     parser.add_argument("--language", choices=["en", "ru"], default="en", help="Language for app-owned reports")
     parser.add_argument("--model", choices=MODEL_ORDER, default=None)
     parser.add_argument("--auto-fallback", action=argparse.BooleanOptionalAction, default=None)

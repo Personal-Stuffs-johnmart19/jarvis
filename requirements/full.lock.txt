@@ -140,9 +140,9 @@ winrt-windows-devices-enumeration==4!10.0.28000.2705
 winrt-windows-foundation==4!10.0.28000.2957
 winrt-windows-foundation-collections==4!10.0.28000.2957
 winrt-windows-globalization==4!10.0.28000.2957
-winrt-windows-graphics-imaging==4!10.0.28000.2705
+winrt-windows-graphics-imaging==4!10.0.28000.2957
 winrt-windows-media-ocr==4!10.0.28000.2705
 winrt-windows-security-cryptography==4!10.0.28000.2705
-winrt-windows-storage-streams==4!10.0.28000.2705
+winrt-windows-storage-streams==4!10.0.28000.2957
 xlsxwriter==3.3.1
 youtube-transcript-api==1.2.5
