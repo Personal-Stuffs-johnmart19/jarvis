@@ -1,0 +1,7 @@
+# Attribution
+
+Jarvis derives from [Kaizumi](https://github.com/MusayevDoniyor/kaizumi) by Musayev Doniyor (Kaizo). The recorded base import is commit [`c7f89259868999c92d04b100a82839de1df1846a`](https://github.com/MusayevDoniyor/kaizumi/tree/c7f89259868999c92d04b100a82839de1df1846a); its [upstream MIT license](https://github.com/MusayevDoniyor/kaizumi/blob/c7f89259868999c92d04b100a82839de1df1846a/LICENSE) and copyright are retained in [LICENSE](LICENSE). The historical source fork was [MRCROUS/kaizumi](https://github.com/MRCROUS/kaizumi); that pointer does not promise continued availability. A clean publication history does not change the original authorship.
+
+The embedded frontend, native workspace modules and terminal CLI adapt [Terax AI](https://github.com/crynta/terax-ai) revision [`f7bee29d8690aa0afe37ed8b4c94daeb5b0211ad`](https://github.com/crynta/terax-ai/tree/f7bee29d8690aa0afe37ed8b4c94daeb5b0211ad). Their Apache-2.0 license, retained terminal notices and Jarvis adaptation scope are in [third_party/terax/NOTICE.md](third_party/terax/NOTICE.md) and [third_party/terax/LICENSE](third_party/terax/LICENSE). The matching CLI identity is recorded in [integrations/companions.json](integrations/companions.json).
+
+Jarvis adaptations and integration work are maintained by johnmart19. Codex-assisted commits carry the requested co-author trailer. This attribution does not relicense third-party libraries, runtimes, models or data. See [third-party notices](docs/THIRD_PARTY.md) and the accompanying component notices.

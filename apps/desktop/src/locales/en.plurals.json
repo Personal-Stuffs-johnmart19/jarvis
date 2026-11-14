@@ -1,0 +1,30 @@
+{
+  "{0} files": {
+    "one": "{0} file",
+    "other": "{0} files"
+  },
+  "Context compacted — {0} older tool results elided to save tokens.": {
+    "one": "Context compacted — {0} older tool result elided to save tokens.",
+    "other": "Context compacted — {0} older tool results elided to save tokens."
+  },
+  "{0} lines": {
+    "one": "{0} line",
+    "other": "{0} lines"
+  },
+  "{0} hits": {
+    "one": "{0} hit",
+    "other": "{0} hits"
+  },
+  "{0} replacements": {
+    "one": "{0} replacement",
+    "other": "{0} replacements"
+  },
+  "{0} edits": {
+    "one": "{0} edit",
+    "other": "{0} edits"
+  },
+  "{0} pending changes": {
+    "one": "{0} pending change",
+    "other": "{0} pending changes"
+  }
+}

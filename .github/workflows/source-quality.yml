@@ -1,0 +1,118 @@
+name: Source quality
+on:
+  pull_request:
+    paths: ['apps/desktop/**', 'local_mode/**', 'benchmarks/**', 'tests/**', 'tools/**', '.node-version', '.gitignore', '.semgrepignore', '.codacy/**', '.codacy.yaml', '.github/workflows/source-quality.yml']
+  push:
+    branches: [main]
+    paths: ['apps/desktop/**', 'local_mode/**', 'benchmarks/**', 'tests/**', 'tools/**', '.node-version', '.gitignore', '.semgrepignore', '.codacy/**', '.codacy.yaml', '.github/workflows/source-quality.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: source-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      JARVIS_QA_ALLOW_CLOUD: '0'
+      CI: 'true'
+      CODACY_DISABLE_UPDATE_CHECK: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: |
+            apps/desktop/pnpm-lock.yaml
+            tools/dev/pnpm-lock.yaml
+      - name: Install pinned dependencies
+        run: |
+          pnpm --dir apps/desktop install --frozen-lockfile --ignore-scripts
+          pnpm --dir tools/dev install --frozen-lockfile --ignore-scripts
+      - name: Offline agent unit tests
+        run: |
+          shopt -s nullglob
+          tests=(tests/agent/test_*.mjs)
+          if [ "${#tests[@]}" -eq 0 ]; then
+            echo "No agent regression tests found in tests/agent" >&2
+            exit 1
+          fi
+          node --test "${tests[@]}"
+      - name: TypeScript
+        run: pnpm --dir apps/desktop exec tsc --noEmit
+      - name: Select comparison revision
+        id: base
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE: ${{ github.event.before }}
+        run: |
+          base="${PR_BASE:-$PUSH_BASE}"
+          node tools/ci/comparison-base.mjs "$base" >> "$GITHUB_OUTPUT"
+      - name: Audit changed Node dependency graphs
+        env:
+          QUALITY_BASE: ${{ steps.base.outputs.revision }}
+        run: |
+          for project in apps/desktop tools/dev; do
+            if ! git diff --quiet "$QUALITY_BASE" HEAD -- "$project/package.json" "$project/pnpm-lock.yaml" "$project/pnpm-workspace.yaml"; then
+              pnpm --dir "$project" audit --audit-level moderate
+            fi
+          done
+      - name: Validate changed Rust dependency graphs
+        env:
+          QUALITY_BASE: ${{ steps.base.outputs.revision }}
+        run: |
+          if git diff --quiet "$QUALITY_BASE" HEAD -- apps/desktop/src-tauri/Cargo.toml apps/desktop/src-tauri/Cargo.lock apps/desktop/src-tauri/workbench-core/Cargo.toml; then
+            exit 0
+          fi
+          cargo metadata --locked --format-version 1 --filter-platform x86_64-unknown-linux-gnu --manifest-path apps/desktop/src-tauri/Cargo.toml > "$RUNNER_TEMP/jarvis-cargo-metadata.json"
+      - name: Select security analysis scope
+        id: security_scope
+        env:
+          QUALITY_BASE: ${{ steps.base.outputs.revision }}
+          QUALITY_STRATEGY: ${{ steps.base.outputs.strategy }}
+        run: node tools/ci/security-scope.mjs "$QUALITY_BASE" "$QUALITY_STRATEGY" >> "$GITHUB_OUTPUT"
+      - name: Explain inapplicable source analysis
+        if: steps.security_scope.outputs.scan == 'false'
+        run: echo 'No changed supported source; SAST is inapplicable. Dependency checks remain required.'
+      - name: Cache managed security analyzer
+        if: steps.security_scope.outputs.scan == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.codacy/tools
+          key: codacy-tools-${{ runner.os }}-${{ runner.arch }}-0.25.0
+      - name: Install managed security analyzer
+        if: steps.security_scope.outputs.scan == 'true'
+        run: pnpm --dir tools/dev exec codacy-analysis install --tool Semgrep
+      - name: Codacy source analysis
+        if: steps.security_scope.outputs.scan == 'true'
+        env:
+          QUALITY_BASE: ${{ steps.base.outputs.revision }}
+          QUALITY_STRATEGY: ${{ steps.security_scope.outputs.strategy }}
+        run: |
+          diff_args=()
+          if [ "$QUALITY_STRATEGY" != "full-tree" ]; then
+            diff_args=(--diff "$QUALITY_BASE")
+          fi
+          analyzer_status=0
+          pnpm --dir tools/dev exec codacy-analysis analyze ../.. \
+            "${diff_args[@]}" --tool Semgrep \
+            --parallel-tools 2 --tool-timeout 120000 \
+            --fail-if-missing --output-format json --output ../../quality.json || analyzer_status=$?
+          node tools/ci/check-security-review.mjs quality.json "$analyzer_status"
+      - name: Save diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: source-quality-${{ github.run_id }}
+          path: quality.json
+          if-no-files-found: ignore
+          retention-days: 7

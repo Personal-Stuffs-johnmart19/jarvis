@@ -1,0 +1,39 @@
+/* Shared interaction motion for the shell and both embedded surfaces. */
+:root {
+  --jarvis-motion-fast: 120ms;
+  --jarvis-motion-enter: 180ms;
+  --jarvis-motion-ease: cubic-bezier(.16, 1, .3, 1);
+}
+@keyframes jarvis-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes jarvis-dialog-in {
+  from { opacity: 0; transform: translateY(6px) scale(.99); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduced-motion="true"]) :is(.global-settings, dialog.jarvis-confirmation[open]) {
+    animation: jarvis-dialog-in var(--jarvis-motion-enter) var(--jarvis-motion-ease);
+  }
+  :root:not([data-reduced-motion="true"]) .global-settings-scroll > .settings-content {
+    animation: jarvis-fade-in var(--jarvis-motion-fast) ease-out;
+  }
+  :root:not([data-reduced-motion="true"]) :is(button, [role="tab"], summary) {
+    transition: background-color var(--jarvis-motion-fast) ease-out,
+      border-color var(--jarvis-motion-fast) ease-out, color var(--jarvis-motion-fast) ease-out,
+      opacity var(--jarvis-motion-fast) ease-out;
+  }
+}
+/* Include pseudo-elements and embedded documents; the shared setting is immediate. */
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

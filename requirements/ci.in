@@ -1,0 +1,10 @@
+-r local.txt
+jsonschema
+requests
+pytest
+keyboard
+psutil
+send2trash
+python-pptx
+openpyxl
+pypdf

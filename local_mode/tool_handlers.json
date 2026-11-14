@@ -1,0 +1,150 @@
+{
+  "open_app": [
+    "actions.open_app",
+    "open_app"
+  ],
+  "weather_report": [
+    "actions.weather_report",
+    "weather_action"
+  ],
+  "browser_control": [
+    "actions.browser_control",
+    "browser_control"
+  ],
+  "file_controller": [
+    "actions.file_controller",
+    "file_controller"
+  ],
+  "send_message": [
+    "actions.send_message",
+    "send_message"
+  ],
+  "reminder": [
+    "actions.reminder",
+    "reminder"
+  ],
+  "youtube_video": [
+    "actions.youtube_video",
+    "youtube_video"
+  ],
+  "screen_process": [
+    "actions.screen_processor",
+    "screen_process"
+  ],
+  "computer_settings": [
+    "actions.computer_settings",
+    "computer_settings"
+  ],
+  "cmd_control": [
+    "actions.cmd_control",
+    "cmd_control"
+  ],
+  "desktop_control": [
+    "actions.desktop",
+    "desktop_control"
+  ],
+  "code_helper": [
+    "actions.code_helper",
+    "code_helper"
+  ],
+  "dev_agent": [
+    "actions.dev_agent",
+    "dev_agent"
+  ],
+  "web_search": [
+    "actions.web_search",
+    "web_search"
+  ],
+  "computer_control": [
+    "actions.computer_control",
+    "computer_control"
+  ],
+  "system_status": [
+    "actions.system_status",
+    "system_status"
+  ],
+  "task_manager": [
+    "actions.task_manager",
+    "task_manager"
+  ],
+  "clipboard": [
+    "actions.clipboard",
+    "clipboard_action"
+  ],
+  "vision_gesture": [
+    "actions.vision_gesture",
+    "vision_gesture"
+  ],
+  "game_updater": [
+    "actions.game_updater",
+    "game_updater"
+  ],
+  "flight_finder": [
+    "actions.flight_finder",
+    "flight_finder"
+  ],
+  "notify": [
+    "actions.notifications",
+    "notify"
+  ],
+  "daily_briefing": [
+    "actions.daily_briefing",
+    "daily_briefing"
+  ],
+  "gmail": [
+    "actions.gmail",
+    "gmail_action"
+  ],
+  "read_pdf": [
+    "actions.pdf_reader",
+    "read_pdf"
+  ],
+  "pdf_qa": [
+    "actions.pdf_reader",
+    "pdf_qa"
+  ],
+  "autostart": [
+    "actions.autostart",
+    "autostart_action"
+  ],
+  "vision_click": [
+    "actions.vision_click",
+    "vision_click_action"
+  ],
+  "monitor_alerts": [
+    "actions.monitor",
+    "monitor_action"
+  ],
+  "pc_health": [
+    "actions.guardian",
+    "guardian_action"
+  ],
+  "email_watch": [
+    "actions.monitor",
+    "email_watch_action"
+  ],
+  "translate": [
+    "actions.translate",
+    "translate_action"
+  ],
+  "media_control": [
+    "actions.media_control",
+    "media_control_action"
+  ],
+  "read_document": [
+    "actions.document_qa",
+    "read_document"
+  ],
+  "document_qa": [
+    "actions.document_qa",
+    "document_qa"
+  ],
+  "calendar": [
+    "actions.calendar",
+    "calendar_action"
+  ],
+  "drive": [
+    "actions.drive",
+    "drive_action"
+  ]
+}

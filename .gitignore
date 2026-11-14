@@ -1,0 +1,118 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.python-version
+
+# Logs
+*.log
+logs/
+
+# Personal / user data — never share this project with these files
+memory/*.json
+models/hey_jarvis*
+models/training/
+
+# Local runtime state
+data/
+documents/
+out/
+build/
+dist/
+
+# Secrets — never commit API keys
+config/*.json
+!config/*.example.json
+config/telegram_offset.txt
+config/bridge_token.txt
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Generated wake word assets (re-trained locally)
+models/hey_jarvis_v0.1.onnx
+models/hey_jarvis_v0.1.onnx.data
+
+# Reference clone for study (openjarvis)
+openjarvis_example/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.apk
+*.aab
+# Local runtime and models
+.cache/
+models/vosk*/
+local-config.json
+.env
+
+.runtime/
+
+# Downloaded Russian Piper voice (verified by setup)
+models/piper/
+models/whisper-small/
+
+# Downloaded Silero models
+models/silero/
+
+# Downloaded audio.cpp runtime and Supertonic models (SHA-256 verified)
+models/audio_cpp/
+
+# Local Playwright MCP snapshots and diagnostics
+.playwright-mcp/
+/apps/desktop/node_modules/
+/apps/desktop/dist/
+/apps/desktop/src-tauri/target/
+
+# Generated Tauri IDE schemas
+/apps/desktop/src-tauri/gen/
+
+# A running legacy portable can remain locked by Windows.
+/desktop-bin/jarvis-desktop.exe
+
+# EmbeddingGemma weights and pinned native runtime are installed on demand.
+/models/embeddinggemma-2/
+
+# Only the explicitly published portable build is tracked.
+/desktop-bin/jarvis-desktop-*.exe
+
+/models/translation/
+
+# Only manifest-pinned companion binaries are force-added for the release.
+/desktop-bin/companions/
+
+# Standalone native workbench test build output (main host owns the lockfile).
+/apps/desktop/src-tauri/workbench-core/target/
+/apps/desktop/src-tauri/workbench-core/Cargo.lock
+
+# External development apps and local analysis output
+/tools/dev/node_modules/
+/quality.sarif
+
+
+
+# Private workstation guidance, credentials and downloaded model state.
+/.agents/
+/.codex/
+/CLAUDE.md
+.env.*
+!.env.example
+/models/*
+!/models/README.md
+!/models/manifest.json

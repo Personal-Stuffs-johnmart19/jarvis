@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "purpose": "Optional legacy vision and custom-wake-word assets; local integrity inventory, not an automatic downloader or redistribution grant.",
+  "recorded_on": "2026-11-12",
+  "root": "models",
+  "integrity_scope": "SHA-256 and sizes measured from retained local files. No model was downloaded or compared with an authenticated remote digest. Mutable source URLs are discovery references; accept bytes only after checking the exact local pin.",
+  "upstream_content_hash_verified": false,
+  "source_revision": null,
+  "runtime_lockfile": "requirements-full.lock.txt",
+  "runtime_pins": {
+    "openwakeword": "0.6.0",
+    "onnxruntime": "1.31.0",
+    "opencv-python": "5.0.0.93",
+    "mediapipe": "1.1.1",
+    "ultralytics": "8.4.183"
+  },
+  "models": [
+    {
+      "file": "embedding_model.onnx",
+      "size_bytes": 1326578,
+      "sha256": "70d164290c1d095d1d4ee149bc5e00543250a7316b59f31d056cff7bd3075c1f",
+      "purpose": "openWakeWord shared audio embedding",
+      "runtime_callers": [
+        "actions/wake_word.py",
+        "actions/jarvis_wake.py"
+      ],
+      "official_source_page": "https://github.com/dscripka/openWakeWord/blob/v0.6.0/openwakeword/__init__.py",
+      "candidate_download_url": "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/embedding_model.onnx",
+      "upstream_artifact_identity": "not_authenticated",
+      "license": {
+        "identifier": null,
+        "status": "unresolved",
+        "note": "Unresolved for this converted feature asset: upstream distinguishes Apache-2.0 code/Google backbone from CC-BY-NC-SA-4.0 included pre-trained models. Do not infer weight terms from engine terms.",
+        "source": "https://github.com/dscripka/openWakeWord/blob/main/README.md"
+      }
+    },
+    {
+      "file": "melspectrogram.onnx",
+      "size_bytes": 1087958,
+      "sha256": "ba2b0e0f8b7b875369a2c89cb13360ff53bac436f2895cced9f479fa65eb176f",
+      "purpose": "openWakeWord mel-spectrogram frontend",
+      "runtime_callers": [
+        "actions/wake_word.py",
+        "actions/jarvis_wake.py"
+      ],
+      "official_source_page": "https://github.com/dscripka/openWakeWord/blob/v0.6.0/openwakeword/__init__.py",
+      "candidate_download_url": "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/melspectrogram.onnx",
+      "upstream_artifact_identity": "not_authenticated",
+      "license": {
+        "identifier": null,
+        "status": "unresolved",
+        "note": "Unresolved for this feature asset; upstream code license alone does not establish the converted model's distribution terms.",
+        "source": "https://github.com/dscripka/openWakeWord/issues/338"
+      }
+    },
+    {
+      "file": "face_detection_yunet_2023mar.onnx",
+      "size_bytes": 232589,
+      "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+      "purpose": "OpenCV Zoo YuNet 2023mar",
+      "runtime_callers": [
+        "actions/vision_gesture.py"
+      ],
+      "official_source_page": "https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet",
+      "candidate_download_url": "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+      "upstream_artifact_identity": "not_authenticated",
+      "license": {
+        "identifier": "MIT",
+        "status": "upstream_terms_checked_exact_local_origin_unverified",
+        "note": "Upstream model directory explicitly states MIT. Local bytes have not been compared with an independently authenticated upstream digest.",
+        "source": "https://github.com/opencv/opencv_zoo/blob/main/models/face_detection_yunet/LICENSE"
+      }
+    },
+    {
+      "file": "face_recognition_sface_2021dec.onnx",
+      "size_bytes": 38696353,
+      "sha256": "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
+      "purpose": "OpenCV Zoo SFace 2021dec",
+      "runtime_callers": [
+        "actions/vision_gesture.py"
+      ],
+      "official_source_page": "https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface",
+      "candidate_download_url": "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx",
+      "upstream_artifact_identity": "not_authenticated",
+      "license": {
+        "identifier": "Apache-2.0",
+        "status": "upstream_terms_checked_exact_local_origin_unverified",
+        "note": "Upstream model directory includes Apache-2.0 terms. Local bytes have not been compared with an independently authenticated upstream digest.",
+        "source": "https://github.com/opencv/opencv_zoo/blob/main/models/face_recognition_sface/LICENSE"
+      }
+    },
+    {
+      "file": "face_detector.tflite",
+      "size_bytes": 229746,
+      "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f",
+      "purpose": "MediaPipe face detector; exact upstream variant unverified",
+      "runtime_callers": [
+        "actions/vision_gesture.py"
+      ],
+      "official_source_page": "https://developers.google.com/edge/mediapipe/solutions/vision/face_detector",
+      "candidate_download_url": null,
+      "upstream_artifact_identity": "not_authenticated",
+      "license": {
+        "identifier": null,
+        "status": "unresolved",
+        "note": "Exact local model variant and its weight license are unverified. The documentation/code-sample license is not evidence of weight terms.",
+        "source": "https://developers.google.com/edge/mediapipe/solutions/vision/face_detector"
+      }
+    },
+    {
+      "file": "holistic_landmarker.task",
+      "size_bytes": 13683609,
+      "sha256": "e2dab61191e2dcd0a15f943d8e3ed1dce13c82dfa597b9dd39f562975a50c3f8",
+      "purpose": "MediaPipe holistic landmarker bundle; exact upstream version unverified",
+      "runtime_callers": [
+        "actions/vision_gesture.py"
+      ],
+      "official_source_page": "https://developers.google.com/edge/mediapipe/solutions/vision/holistic_landmarker",
+      "candidate_download_url": null,
+      "upstream_artifact_identity": "not_authenticated",
+      "license": {
+        "identifier": null,
+        "status": "unresolved",
+        "note": "Exact local bundle version and its weight license are unverified. Inspect the official component model cards before redistribution.",
+        "source": "https://developers.google.com/edge/mediapipe/solutions/vision/holistic_landmarker"
+      }
+    },
+    {
+      "file": "yolo11n.pt",
+      "size_bytes": 5613764,
+      "sha256": "0ebbc80d4a7680d14987a577cd21342b65ecfd94632bd9a8da63ae6417644ee1",
+      "purpose": "Ultralytics YOLO11n detection",
+      "runtime_callers": [
+        "vision/model_manager.py",
+        "actions/vision_gesture.py"
+      ],
+      "official_source_page": "https://docs.ultralytics.com/models/yolo11/",
+      "candidate_download_url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt",
+      "upstream_artifact_identity": "not_authenticated",
+      "license": {
+        "identifier": "AGPL-3.0",
+        "status": "upstream_terms_checked_exact_local_origin_unverified",
+        "note": "Publisher documents AGPL-3.0 model terms and a separate commercial license. No commercial license or exact release identity is established for these local bytes.",
+        "source": "https://www.ultralytics.com/license"
+      }
+    }
+  ]
+}

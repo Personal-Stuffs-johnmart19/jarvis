@@ -1,0 +1,29 @@
+.api-usage {
+  min-width: 0;
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.api-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.api-usage table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+.api-usage th,
+.api-usage td {
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.api-usage td:first-child {
+  overflow-wrap: anywhere;
+}
+.api-usage td small {
+  display: block;
+  color: var(--muted);
+}

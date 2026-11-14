@@ -1,0 +1,42 @@
+:root {
+  --radius: 0.9rem;
+  font-family: "Inter Variable", "Segoe UI", sans-serif;
+}
+body {
+  background: transparent;
+}
+.bg-card,
+[data-slot="card"] {
+  border-radius: 16px;
+}
+[data-slot="tabs-list"] {
+  border-radius: 14px;
+  padding: 5px;
+  height: auto;
+}
+[data-slot="tabs-trigger"] {
+  border-radius: 10px;
+  min-height: 34px;
+  font-size: 12px;
+}
+header {
+  backdrop-filter: blur(18px);
+}
+
+/* Keep settings navigation usable in narrow host windows. */
+header > [data-slot="tabs"] {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+[data-slot="tabs-list"] {
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  main {
+    padding-inline: 16px !important;
+  }
+  [data-slot="tabs-trigger"] {
+    padding-inline: 8px;
+  }
+}

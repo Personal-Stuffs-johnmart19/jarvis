@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/crynta/terax-ai",
+  "revision": "f7bee29d8690aa0afe37ed8b4c94daeb5b0211ad",
+  "license": "Apache-2.0",
+  "integration": "Frontend and native source modules compiled into Jarvis with shared services, approvals, localization and host IPC. The terminal CLI is built from this revision."
+}

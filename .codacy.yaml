@@ -1,0 +1,10 @@
+---
+exclude_paths:
+  - .cache/**
+  - .venv/**
+  - '**/node_modules/**'
+  - '**/target/**'
+  - '**/dist/**'
+  - desktop-bin/**
+  - models/**
+  - data/**

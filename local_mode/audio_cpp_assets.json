@@ -1,0 +1,56 @@
+{
+  "release": "v0.9.2-drama3-base-small",
+  "archive_url": "https://github.com/0xShug0/audio.cpp/releases/download/v0.9.2-drama3-base-small/audio-v0.9.2-drama3-base-small-bin-windows-x64-vulkan-portable.zip",
+  "archive_sha256": "9c943d406af3543cc5005d158ed583210cd7a13371bffcd4b7f262f7a6a5ad16",
+  "runtime_files": {
+    "LICENSE": {
+      "size": 10466,
+      "sha256": "7e125adced85b7f84c04371179d15d51fbd702cefd060a37043fe38d6eb1722e"
+    },
+    "vcruntime140_threads.dll": {
+      "size": 38528,
+      "sha256": "219915cf20822f34d5e7c1fdd4e21ae7f3396881096c51036225fb8f84b47afa"
+    },
+    "msvcp140_codecvt_ids.dll": {
+      "size": 31872,
+      "sha256": "f2069a52880ec885ee7f0511186100eb7fada0411a2b4948fafea7735b878a18"
+    },
+    "msvcp140.dll": {
+      "size": 557728,
+      "sha256": "0f885b509a685d2bbfa652fed26b5fb31d88fbdab0a978c641d1c7b8aa460aa9"
+    },
+    "msvcp140_2.dll": {
+      "size": 280200,
+      "sha256": "3ea06f0ee098b4823cb79599df3780e7f23cce52c19aac31d2a0d47efe33a5e9"
+    },
+    "vcruntime140_1.dll": {
+      "size": 49792,
+      "sha256": "1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f"
+    },
+    "audiocpp_server.exe": {
+      "size": 93713920,
+      "sha256": "cc667f247ac6153a68ac1dca56178601b27af6aec20da6626383d3336da04d56"
+    },
+    "vcruntime140.dll": {
+      "size": 124544,
+      "sha256": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066"
+    },
+    "msvcp140_atomic_wait.dll": {
+      "size": 50304,
+      "sha256": "640b2aefced484d0368eea5bdd06addd0658a3a70a49256e560d6923b404a479"
+    },
+    "msvcp140_1.dll": {
+      "size": 35952,
+      "sha256": "bfad5aef4c63a669e3c140655cdfdf395b6c979b400a447bd5dcb65ed8826c3d"
+    },
+    "vcomp140.dll": {
+      "size": 193152,
+      "sha256": "55aba23cdcd6484fbb06f4155b8ca75adfce7a881f10afd0c49457165e677164"
+    }
+  },
+  "model_url": "https://huggingface.co/audio-cpp/audio.cpp-gguf/resolve/beb00ab19f10ca33e8a8983a43410527da3f5601/Supertonic-3-GGUF/supertonic-3-orig.gguf",
+  "model_sha256": "ceede06706a11590dd055220152b44c37a5fb8ac33bb61e19a334e5258901b09",
+  "model_size": 454076228,
+  "model_license_url": "https://huggingface.co/supertone-oss-archive/supertonic-3/resolve/aafc6e32416a594460b32413efc49d7fe4ce6d46/LICENSE",
+  "model_license_sha256": "0d944a9110fed9a9602d60e0423a272903e7bd21ab060490774efc77c2275e9f"
+}

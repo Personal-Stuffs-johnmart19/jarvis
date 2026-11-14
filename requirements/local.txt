@@ -1,0 +1,14 @@
+google-genai==2.32.0
+# Resolved with google-genai, whose current release requires tenacity <9.2.
+tenacity>=9.1.4
+pydantic==2.14.3
+pydantic_core==2.50.4
+httpx==0.28.1
+sounddevice==0.5.6
+numpy==2.5.4
+pillow==13.0.0
+vosk==0.3.45
+playwright==1.65.0
+
+
+cv2-enumerate-cameras==1.4.0

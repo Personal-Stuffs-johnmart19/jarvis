@@ -1,0 +1,51 @@
+.workbench-space {
+  grid-column: 2;
+  grid-row: 2;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  border-radius: 24px;
+}
+.workbench-space[hidden] {
+  display: none;
+}
+.workbench-space iframe,
+.workbench-settings iframe {
+  border: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  border-radius: inherit;
+}
+.modal.workbench-settings {
+  max-width: min(1180px, 96vw);
+  width: min(1180px, 96vw);
+  height: min(920px, 92dvh);
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.workspace[hidden] {
+  display: none;
+}
+@media (max-width: 1150px) {
+  .workbench-space {
+    grid-column: 1 / -1;
+  }
+}
+
+:root[style*="--workbench-background"] .shell {
+  background:
+    radial-gradient(
+      ellipse at 80% 10%,
+      color-mix(in srgb, var(--accent) 20%, transparent),
+      transparent 65%
+    ),
+    var(--workbench-background);
+}
+
+.workbench-space iframe, .global-settings-content iframe { background: var(--workbench-background, var(--surface)); color-scheme: inherit; }
+.global-settings-content iframe[hidden] { display: none; }

@@ -1,0 +1,9 @@
+overrides:
+  "latest-version>package-json": "7.0.0"
+  "@codacy/analysis-runner>minimatch": "11.0.1"
+  "@codacy/tools-scalastyle-1>fast-xml-parser": "5.12.0"
+  "@codacy/tools-checkstyle-13>fast-xml-parser": "5.12.0"
+  "@codacy/tools-cppcheck-2>fast-xml-parser": "5.12.0"
+  "@codacy/tools-detekt-1>fast-xml-parser": "5.12.0"
+patchedDependencies:
+  '@codacy/analysis-runner@0.25.0': patches/@codacy__analysis-runner@0.25.0.patch

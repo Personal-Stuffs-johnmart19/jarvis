@@ -1,0 +1,47 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories: ['/apps/desktop', '/tools/dev']
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 3
+    groups:
+      compatible-npm:
+        update-types: [minor, patch]
+      ai-sdk:
+        patterns: ['ai', '@ai-sdk/*']
+  - package-ecosystem: pip
+    directory: /
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 2
+    # Known incompatible proposals; revisit when the parent SDK/SymPy bounds change.
+    ignore:
+      - dependency-name: tenacity
+        versions: ['9.2.1']
+      - dependency-name: mpmath
+        versions: ['>=1.4']
+      - dependency-name: websockets
+        versions: ['>=17']
+    groups:
+      # WinRT projection packages and their runtime must share a generation.
+      winrt-cohort:
+        patterns: ['winrt-*']
+      python-compatible:
+        update-types: [minor, patch]
+  - package-ecosystem: cargo
+    directories: ['/apps/desktop/src-tauri', '/apps/desktop/src-tauri/workbench-core']
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 2
+    # Tauri currently links gtk-sys 0.18; keep other Rust updates enabled.
+    ignore:
+      - dependency-name: gtk
+        versions: ['0.19.0']
+    groups:
+      rust-compatible:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns: ['*']

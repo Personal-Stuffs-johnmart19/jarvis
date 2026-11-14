@@ -1,0 +1,13 @@
+diff --git a/dist/index.js b/dist/index.js
+index 0b912f862a9caff11a6f1ed86d26e57617989a38..5fb7258be03a7c862761c9d1d8c65853dc561f63 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -549,7 +549,7 @@ function detectDefaultBranch(repositoryRoot) {
+ }
+ 
+ // src/files.ts
+-var MAX_FILE_SIZE_BYTES = 150 * 1024;
++var MAX_FILE_SIZE_BYTES = 256 * 1024;
+ var DEPENDENCY_MANIFEST_FILES = /* @__PURE__ */ new Set([
+   // JavaScript / TypeScript
+   "package.json",

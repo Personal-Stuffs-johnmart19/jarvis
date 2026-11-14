@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://www.coderabbit.ai/integrations/schema.v2.json
+language: en-US
+reviews:
+  profile: chill
+  poem: false
+  high_level_summary: false
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 3
+  path_filters:
+    - '!.cache/**'
+    - '!.venv/**'
+    - '!**/node_modules/**'
+    - '!**/target/**'
+    - '!**/dist/**'
+    - '!desktop-bin/**'
+    - '!models/**'
+    - '!data/**'
+    - '!**/pnpm-lock.yaml'
+    - '!**/Cargo.lock'
+  path_instructions:
+    - path: 'apps/desktop/**'
+      instructions: 'Prioritize correctness, security and regressions. Preserve the common model catalogue, shared approvals, exact tool-call/result linkage and Stop cancellation. English source strings with separate locales. Avoid stylistic suggestions or duplicate tests.'
+    - path: 'local_mode/**'
+      instructions: 'Check common service schemas, cloud/local parity, model/index identity, bounded resource use and safe model-file containment. Never suggest live cloud-model test matrices or replaying mutations to recover output.'
+    - path: '**/proc/**'
+      instructions: 'Check owned process-tree cleanup on cancellation, timeout, app exit and dropped futures. Never kill unrelated processes by executable name.'
+chat:
+  auto_reply: false

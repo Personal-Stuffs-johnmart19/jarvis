@@ -1,0 +1,846 @@
+# actions/computer_settings.py
+# Jarvis — Computer Settings & UI Controls
+#
+# Kullanıcı "sesi aç", "uygulamayı kapat", "tam ekran yap", "şunu yaz" gibi
+# bilgisayar kontrol komutları verdiğinde bu dosya devreye girer.
+#
+# - Explicit actions planned by the shared agent (no hidden cloud planner)
+# - Cross-platform: Windows / macOS / Linux
+# - pyautogui + platform-specific API'ler
+
+import time
+import subprocess
+from local_mode.processes import run as run_hidden
+import sys
+import platform
+from pathlib import Path
+
+_PG_MOD = None
+
+
+def _pg():
+    """Lazily import pyautogui; returns the module or None."""
+    global _PG_MOD
+    if _PG_MOD is None:
+        try:
+            import pyautogui
+            pyautogui.FAILSAFE = True
+            pyautogui.PAUSE    = 0.05
+            _PG_MOD = pyautogui
+        except ImportError:
+            _PG_MOD = False
+    return _PG_MOD or None
+
+try:
+    import pyperclip
+    _PYPERCLIP = True
+except ImportError:
+    _PYPERCLIP = False
+
+_OS = platform.system() 
+
+def get_base_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
+    return Path(__file__).resolve().parent.parent
+
+BASE_DIR        = get_base_dir()
+API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
+
+def volume_up():
+    if _OS == "Windows":
+        for _ in range(5): _pg().press("volumeup")
+    elif _OS == "Darwin":
+        run_hidden(["osascript", "-e", "set volume output volume (output volume of (get volume settings) + 10)"])
+    else:
+        run_hidden(["pactl", "set-sink-volume", "@DEFAULT_SINK@", "+10%"])
+
+def volume_down():
+    if _OS == "Windows":
+        for _ in range(5): _pg().press("volumedown")
+    elif _OS == "Darwin":
+        run_hidden(["osascript", "-e", "set volume output volume (output volume of (get volume settings) - 10)"])
+    else:
+        run_hidden(["pactl", "set-sink-volume", "@DEFAULT_SINK@", "-10%"])
+
+def volume_mute():
+    if _OS == "Windows":
+        _pg().press("volumemute")
+    elif _OS == "Darwin":
+        run_hidden(["osascript", "-e", "set volume with output muted"])
+    else:
+        run_hidden(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"])
+
+def volume_set(value: int):
+    value = max(0, min(100, value))
+    if _OS == "Windows":
+        try:
+            from pycaw.pycaw import AudioUtilities
+            devices = AudioUtilities.GetSpeakers()
+            vol = devices.EndpointVolume
+            vol.SetMasterVolumeLevelScalar(value / 100, None)
+            print(f"[Settings] 🔊 Volume → {value}%")
+            return
+        except Exception as e:
+            raise RuntimeError(f"Could not set system volume: {e}") from e
+    elif _OS == "Darwin":
+        run_hidden(["osascript", "-e", f"set volume output volume {value}"])
+        return
+    else:
+        run_hidden(["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{value}%"])
+        return
+
+def _win_brightness_get() -> int:
+    try:
+        out = run_hidden(
+            ["powershell", "-NoProfile", "-Command",
+             "(Get-CimInstance -Namespace root/WMI -Class WmiMonitorBrightness).CurrentBrightness"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10
+        )
+        val = out.stdout.strip()
+        return int(val) if val.isdigit() else -1
+    except Exception as e:
+        print(f"[Settings] ⚠️ Brightness get failed: {e}")
+        return -1
+
+def _win_brightness_set(percent: int) -> bool:
+    percent = max(0, min(100, int(percent)))
+    try:
+        run_hidden(
+            ["powershell", "-NoProfile", "-Command",
+             f"Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods | Invoke-CimMethod -MethodName WmiSetBrightness -Arguments @{{Timeout=1;Brightness=[byte]{percent}}}"],
+            capture_output=True, timeout=10, check=True
+        )
+        return True
+    except Exception as e:
+        print(f"[Settings] ⚠️ Brightness set failed: {e}")
+        return False
+
+def app_volume(app_name: str, level: int | None = None) -> str:
+    """Per-app volume control on Windows. level=None → mute. level=0-100 → set %."""
+    if _OS != "Windows":
+        return "Per-app volume is only supported on Windows."
+    if not app_name:
+        return "No app name provided, sir."
+    try:
+        from pycaw.pycaw import AudioUtilities
+        sessions = AudioUtilities.GetAllSessions()
+        target = None
+        for sess in sessions:
+            try:
+                name = sess.Process and sess.Process.name().lower() or ""
+            except Exception:
+                name = ""
+            if app_name.lower() in name:
+                target = sess
+                break
+        if not target:
+            return f"Could not find app '{app_name}' playing audio, sir."
+        if level is None:
+            target.SimpleAudioVolume.SetMute(1, None)
+            return f"Muted {app_name}, sir."
+        target.SimpleAudioVolume.SetMasterVolume(level / 100.0, None)
+        target.SimpleAudioVolume.SetMute(0, None)
+        return f"{app_name} volume set to {level}%."
+    except Exception as e:
+        return f"App volume control failed: {e}"
+
+def _media(action):
+    from actions.media_control import media_control_action
+    result = media_control_action({"action": action})
+    if not result.get("ok"):
+        raise RuntimeError(result.get("error") or result.get("reply") or "Player action failed")
+    return result
+
+
+def media_play_pause(): return _media("toggle")
+def media_next(): return _media("next")
+def media_prev(): return _media("previous")
+def media_stop(): return _media("stop")
+
+def brightness_up():
+    if _OS == "Windows":
+        current = _win_brightness_get()
+        if current >= 0:
+            if not _win_brightness_set(current + 10):
+                raise RuntimeError("Monitor rejected brightness change")
+            return
+    elif _OS == "Darwin":
+        run_hidden(["osascript", "-e", "tell application \"System Events\" to key code 144"])
+        return
+    else:
+        run_hidden(["brightnessctl", "set", "+10%"])
+        return
+    raise RuntimeError("Monitor does not expose brightness control through Windows WMI")
+
+def brightness_down():
+    if _OS == "Windows":
+        current = _win_brightness_get()
+        if current >= 0:
+            if not _win_brightness_set(current - 10):
+                raise RuntimeError("Monitor rejected brightness change")
+            return
+    elif _OS == "Darwin":
+        run_hidden(["osascript", "-e", "tell application \"System Events\" to key code 145"])
+        return
+    else:
+        run_hidden(["brightnessctl", "set", "10%-"])
+        return
+    raise RuntimeError("Monitor does not expose brightness control through Windows WMI")
+
+def brightness_set(percent: int):
+    if _OS == "Windows":
+        if _win_brightness_set(percent):
+            return
+    elif _OS == "Darwin":
+        run_hidden(["osascript", "-e", f"set brightness {percent}"])
+        return
+    else:
+        run_hidden(["brightnessctl", "set", f"{percent}%"])
+        return
+    raise RuntimeError("Could not set brightness via native API")
+
+
+def close_app():
+    if _OS == "Darwin":
+        _pg().hotkey("command", "q")
+    else:
+        _pg().hotkey("alt", "f4")
+
+def close_window():
+    if _OS == "Darwin":
+        _pg().hotkey("command", "w")
+    else:
+        _pg().hotkey("ctrl", "w")
+
+def full_screen():
+    if _OS == "Darwin":
+        _pg().hotkey("ctrl", "command", "f")
+    else:
+        _pg().press("f11")
+
+def minimize_window():
+    if _OS == "Darwin":
+        _pg().hotkey("command", "m")
+    else:
+        _pg().hotkey("win", "down")
+
+def maximize_window():
+    if _OS == "Darwin":
+        run_hidden(["osascript", "-e",
+            'tell application "System Events" to keystroke "f" using {control down, command down}'])
+    else:
+        _pg().hotkey("win", "up")
+
+def snap_left():
+    if _OS == "Windows": _pg().hotkey("win", "left")
+
+def snap_right():
+    if _OS == "Windows": _pg().hotkey("win", "right")
+
+def switch_window():
+    if _OS == "Darwin":
+        _pg().hotkey("command", "tab")
+    else:
+        _pg().hotkey("alt", "tab")
+
+def show_desktop():
+    if _OS == "Darwin":
+        _pg().hotkey("fn", "f11")
+    elif _OS == "Windows":
+        _pg().hotkey("win", "d")
+    else:
+        _pg().hotkey("super", "d")
+
+def open_task_manager():
+    if _OS == "Windows":
+        _pg().hotkey("ctrl", "shift", "esc")
+    elif _OS == "Darwin":
+        subprocess.Popen(["open", "-a", "Activity Monitor"])
+    else:
+        subprocess.Popen(["gnome-system-monitor"])
+
+def open_task_view():
+    if _OS == "Windows":
+        _pg().hotkey("win", "tab")
+
+
+def focus_search():
+    if _OS == "Darwin": _pg().hotkey("command", "l")
+    else:               _pg().hotkey("ctrl", "l")
+
+def pause_video(): return _media("pause")
+def refresh_page():
+    if _OS == "Darwin": _pg().hotkey("command", "r")
+    else:               _pg().press("f5")
+
+def close_tab():
+    if _OS == "Darwin": _pg().hotkey("command", "w")
+    else:               _pg().hotkey("ctrl", "w")
+
+def new_tab():
+    if _OS == "Darwin": _pg().hotkey("command", "t")
+    else:               _pg().hotkey("ctrl", "t")
+
+def next_tab():
+    if _OS == "Darwin": _pg().hotkey("command", "shift", "bracketright")
+    else:               _pg().hotkey("ctrl", "tab")
+
+def prev_tab():
+    if _OS == "Darwin": _pg().hotkey("command", "shift", "bracketleft")
+    else:               _pg().hotkey("ctrl", "shift", "tab")
+
+def go_back():
+    if _OS == "Darwin": _pg().hotkey("command", "left")
+    else:               _pg().hotkey("alt", "left")
+
+def go_forward():
+    if _OS == "Darwin": _pg().hotkey("command", "right")
+    else:               _pg().hotkey("alt", "right")
+
+def zoom_in():
+    if _OS == "Darwin": _pg().hotkey("command", "equal")
+    else:               _pg().hotkey("ctrl", "equal")
+
+def zoom_out():
+    if _OS == "Darwin": _pg().hotkey("command", "minus")
+    else:               _pg().hotkey("ctrl", "minus")
+
+def zoom_reset():
+    if _OS == "Darwin": _pg().hotkey("command", "0")
+    else:               _pg().hotkey("ctrl", "0")
+
+def find_on_page():
+    if _OS == "Darwin": _pg().hotkey("command", "f")
+    else:               _pg().hotkey("ctrl", "f")
+
+def reload_page_n(n: int):
+    for _ in range(n):
+        refresh_page()
+        time.sleep(0.8)
+
+
+def scroll_up(amount: int = 500):   _pg().scroll(amount)
+def scroll_down(amount: int = 500): _pg().scroll(-amount)
+def scroll_top():    _pg().hotkey("ctrl", "home") if _OS != "Darwin" else _pg().hotkey("command", "up")
+def scroll_bottom(): _pg().hotkey("ctrl", "end")  if _OS != "Darwin" else _pg().hotkey("command", "down")
+def page_up():       _pg().press("pageup")
+def page_down():     _pg().press("pagedown")
+
+
+def copy():
+    if _OS == "Darwin": _pg().hotkey("command", "c")
+    else:               _pg().hotkey("ctrl", "c")
+
+def paste():
+    if _OS == "Darwin": _pg().hotkey("command", "v")
+    else:               _pg().hotkey("ctrl", "v")
+
+def cut():
+    if _OS == "Darwin": _pg().hotkey("command", "x")
+    else:               _pg().hotkey("ctrl", "x")
+
+def undo():
+    if _OS == "Darwin": _pg().hotkey("command", "z")
+    else:               _pg().hotkey("ctrl", "z")
+
+def redo():
+    if _OS == "Darwin": _pg().hotkey("command", "shift", "z")
+    else:               _pg().hotkey("ctrl", "y")
+
+def select_all():
+    if _OS == "Darwin": _pg().hotkey("command", "a")
+    else:               _pg().hotkey("ctrl", "a")
+
+def save_file():
+    if _OS == "Darwin": _pg().hotkey("command", "s")
+    else:               _pg().hotkey("ctrl", "s")
+
+def press_enter():  _pg().press("enter")
+def press_escape(): _pg().press("escape")
+def press_key(key: str): _pg().press(key)
+
+def type_text(text: str, press_enter_after: bool = False):
+    if not text:
+        return
+    if _PYPERCLIP:
+        pyperclip.copy(text)
+        time.sleep(0.1)
+        paste()
+    else:
+        _pg().write(str(text), interval=0.03)
+    if press_enter_after:
+        time.sleep(0.1)
+        _pg().press("enter")
+
+def write_on_screen(text: str):
+    type_text(text)
+
+def take_screenshot():
+    if _OS == "Windows":
+        _pg().hotkey("win", "shift", "s")
+    elif _OS == "Darwin":
+        _pg().hotkey("command", "shift", "3")
+    else:
+        _pg().hotkey("ctrl", "print_screen")
+
+def lock_screen():
+    if _OS == "Windows":
+        _pg().hotkey("win", "l")
+    elif _OS == "Darwin":
+        run_hidden(["pmset", "displaysleepnow"])
+    else:
+        run_hidden(["gnome-screensaver-command", "-l"])
+
+def open_system_settings():
+    if _OS == "Windows":
+        _pg().hotkey("win", "i")
+    elif _OS == "Darwin":
+        subprocess.Popen(["open", "-a", "System Preferences"])
+    else:
+        subprocess.Popen(["gnome-control-center"])
+
+def open_file_explorer():
+    if _OS == "Windows":
+        _pg().hotkey("win", "e")
+    elif _OS == "Darwin":
+        subprocess.Popen(["open", Path.home()])
+    else:
+        subprocess.Popen(["xdg-open", Path.home()])
+
+def open_run():
+    if _OS == "Windows":
+        _pg().hotkey("win", "r")
+
+def sleep_display():
+    if _OS == "Windows":
+        try:
+            import ctypes
+            ctypes.windll.user32.SendMessageW(0xFFFF, 0x0112, 0xF170, 2)
+        except Exception:
+            pass
+    elif _OS == "Darwin":
+        run_hidden(["pmset", "displaysleepnow"])
+    else:
+        run_hidden(["xset", "dpms", "force", "off"])
+
+def restart_computer():
+    if _OS == "Windows":
+        run_hidden(["shutdown", "/r", "/t", "5"])
+    elif _OS == "Darwin":
+        run_hidden(["osascript", "-e", 'tell application "System Events" to restart'])
+    else:
+        run_hidden(["sudo", "reboot"])
+
+def shutdown_computer():
+    if _OS == "Windows":
+        run_hidden(["shutdown", "/s", "/t", "5"])
+    elif _OS == "Darwin":
+        run_hidden(["osascript", "-e", 'tell application "System Events" to shut down'])
+    else:
+        run_hidden(["sudo", "shutdown", "-h", "now"])
+
+def _win_dark_mode(set_dark: bool) -> bool:
+    value = "0" if set_dark else "1"
+    cmd = (
+        f"Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize' "
+        f"-Name AppsUseLightTheme -Value {value}; "
+        f"Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize' "
+        f"-Name SystemUsesLightTheme -Value {value}"
+    )
+    try:
+        run_hidden(
+            ["powershell", "-NoProfile", "-Command", cmd],
+            capture_output=True, timeout=15
+        )
+        return True
+    except Exception as e:
+        print(f"[Settings] ⚠️ Dark mode failed: {e}")
+        return False
+
+def _win_dark_mode_current() -> bool | None:
+    try:
+        out = run_hidden(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize' -Name AppsUseLightTheme | Select-Object -ExpandProperty AppsUseLightTheme"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10
+        )
+        val = out.stdout.strip()
+        if val in ("0", "1"):
+            return val == "0"
+    except Exception as e:
+        print(f"[Settings] ⚠️ Dark mode read failed: {e}")
+    return None
+
+def dark_mode():
+    if _OS == "Windows":
+        current = _win_dark_mode_current()
+        if current is not None:
+            _win_dark_mode(not current)
+            return
+    elif _OS == "Darwin":
+        run_hidden(["osascript", "-e",
+            'tell app "System Events" to tell appearance preferences to set dark mode to not dark mode'])
+        return
+    else:
+        run_hidden(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme", "prefer-dark"])
+        return
+    raise RuntimeError("Windows rejected the theme change")
+
+def _win_wifi_interface() -> str:
+    try:
+        out = run_hidden(
+            ["powershell", "-NoProfile", "-Command",
+             "[Console]::OutputEncoding=[Text.Encoding]::UTF8; "
+             "(Get-NetAdapter | Where-Object { $_.InterfaceDescription -match 'Wireless|Wi-Fi|WiFi|WLAN|802.11' }).Name"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10
+        )
+        names = [n.strip() for n in out.stdout.splitlines() if n.strip()]
+        if names:
+            return names[0]
+    except Exception as e:
+        print(f"[Settings] ⚠️ WiFi iface detect failed: {e}")
+    return ""
+
+def _win_wifi_state(iface: str) -> str:
+    try:
+        safe = iface.replace("'", "''")
+        out = run_hidden(
+            ["powershell", "-NoProfile", "-Command",
+             "[Console]::OutputEncoding=[Text.Encoding]::UTF8; "
+             f"(Get-NetAdapter -Name '{safe}').Status"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10
+        )
+        status = out.stdout.strip().lower()
+        if "disabled" in status:
+            return "disabled"
+        if status in ("up", "connected", "enabled"):
+            return "enabled"
+    except Exception as e:
+        print(f"[Settings] ⚠️ WiFi state failed: {e}")
+    return ""
+
+def toggle_wifi():
+    if _OS == "Windows":
+        iface = _win_wifi_interface()
+        if iface:
+            state = _win_wifi_state(iface)
+            if state:
+                _win_wifi_set(state == "disabled")
+            return
+    elif _OS == "Darwin":
+        run_hidden(["networksetup", "-setairportpower", "en0", "toggle"])
+        return
+    else:
+        run_hidden(["nmcli", "radio", "wifi", "toggle"])
+        return
+    raise RuntimeError("Wi-Fi interface could not be detected or changed")
+
+def _win_wifi_set(enable: bool) -> str:
+    iface = _win_wifi_interface()
+    if not iface:
+        return "No Wi-Fi adapter found, sir."
+    state = _win_wifi_state(iface)
+    if (enable and state == "enabled") or (not enable and state == "disabled"):
+        return f"Wi-Fi is already {'enabled' if enable else 'disabled'}."
+    try:
+        safe = iface.replace("'", "''")
+        run_hidden(
+            ["powershell", "-NoProfile", "-Command",
+             f"[Console]::OutputEncoding=[Text.Encoding]::UTF8; "
+             f"Disable-NetAdapter -Name '{safe}' -Confirm:$false"
+             if not enable else
+             f"[Console]::OutputEncoding=[Text.Encoding]::UTF8; "
+             f"Enable-NetAdapter -Name '{safe}' -Confirm:$false"],
+            capture_output=True, timeout=20
+        )
+        return f"Wi-Fi turned {'on' if enable else 'off'}."
+    except Exception as e:
+        return f"Could not toggle Wi-Fi: {e}"
+
+def wifi_status() -> str:
+    if _OS != "Windows":
+        return "WiFi status query is only supported on Windows."
+    iface = _win_wifi_interface()
+    if not iface:
+        return "No Wi-Fi adapter found."
+    state = _win_wifi_state(iface)
+    return f"Wi-Fi is {state} on interface '{iface}'."
+
+ACTION_MAP = {
+    "volume_up":               volume_up,
+    "volume_down":             volume_down,
+    "mute":                    volume_mute,
+    "unmute":                  volume_mute,
+    "volume_increase":         volume_up,
+    "volume_decrease":         volume_down,
+    "increase_volume":         volume_up,
+    "decrease_volume":         volume_down,
+    "turn_up_volume":          volume_up,
+    "turn_down_volume":        volume_down,
+    "louder":                  volume_up,
+    "quieter":                 volume_down,
+    "silence":                 volume_mute,
+    "toggle_mute":             volume_mute,
+    "brightness_up":           brightness_up,
+    "brightness_down":         brightness_down,
+    "increase_brightness":     brightness_up,
+    "decrease_brightness":     brightness_down,
+    "brighter":                brightness_up,
+    "dimmer":                  brightness_down,
+    "dim_screen":              brightness_down,
+    "brighten_screen":         brightness_up,
+    "brightness_set":          brightness_set,
+    "set_brightness":          brightness_set,
+    "sleep_display":           sleep_display,
+    "turn_off_screen":         sleep_display,
+    "screen_off":              sleep_display,
+    "display_off":             sleep_display,
+    "change_screen":           sleep_display,
+    "screen_sleep":            sleep_display,
+    "monitor_off":             sleep_display,
+    "turn_off_monitor":        sleep_display,
+    "pause_video":             pause_video,
+    "play_video":              pause_video,
+    "pause":                   pause_video,
+    "play":                    pause_video,
+    "toggle_play":             pause_video,
+    "stop_video":              pause_video,
+    "resume_video":            pause_video,
+    "close_app":               close_app,
+    "close_window":            close_window,
+    "quit_app":                close_app,
+    "exit_app":                close_app,
+    "kill_app":                close_app,
+    "full_screen":             full_screen,
+    "fullscreen":              full_screen,
+    "toggle_fullscreen":       full_screen,
+    "minimize":                minimize_window,
+    "minimize_window":         minimize_window,
+    "maximize":                maximize_window,
+    "maximize_window":         maximize_window,
+    "restore_window":          maximize_window,
+    "snap_left":               snap_left,
+    "snap_right":              snap_right,
+    "window_left":             snap_left,
+    "window_right":            snap_right,
+    "switch_window":           switch_window,
+    "alt_tab":                 switch_window,
+    "next_window":             switch_window,
+    "show_desktop":            show_desktop,
+    "desktop":                 show_desktop,
+    "hide_windows":            show_desktop,
+    "task_manager":            open_task_manager,
+    "open_task_manager":       open_task_manager,
+    "task_view":               open_task_view,
+    "screenshot":              take_screenshot,
+    "take_screenshot":         take_screenshot,
+    "capture_screen":          take_screenshot,
+    "lock_screen":             lock_screen,
+    "lock":                    lock_screen,
+    "open_settings":           open_system_settings,
+    "system_settings":         open_system_settings,
+    "settings":                open_system_settings,
+    "preferences":             open_system_settings,
+    "file_explorer":           open_file_explorer,
+    "open_explorer":           open_file_explorer,
+    "explorer":                open_file_explorer,
+    "open_files":              open_file_explorer,
+    "run":                     open_run,
+    "open_run":                open_run,
+    "restart":                 restart_computer,
+    "restart_computer":        restart_computer,
+    "reboot":                  restart_computer,
+    "reboot_computer":         restart_computer,
+    "shutdown":                shutdown_computer,
+    "shut_down":               shutdown_computer,
+    "power_off":               shutdown_computer,
+    "turn_off_computer":       shutdown_computer,
+    "dark_mode":               dark_mode,
+    "toggle_dark_mode":        dark_mode,
+    "night_mode":              dark_mode,
+    "toggle_wifi":             toggle_wifi,
+    "wifi":                    toggle_wifi,
+    "wifi_toggle":             toggle_wifi,
+    "wifi_status":             wifi_status,
+    "wifi_on":                 lambda: _win_wifi_set(True) if _OS == "Windows" else toggle_wifi(),
+    "wifi_off":                lambda: _win_wifi_set(False) if _OS == "Windows" else toggle_wifi(),
+    "focus_search":            focus_search,
+    "address_bar":             focus_search,
+    "url_bar":                 focus_search,
+    "refresh_page":            refresh_page,
+    "reload_page":             refresh_page,
+    "reload":                  refresh_page,
+    "refresh":                 refresh_page,
+    "close_tab":               close_tab,
+    "new_tab":                 new_tab,
+    "open_tab":                new_tab,
+    "next_tab":                next_tab,
+    "prev_tab":                prev_tab,
+    "previous_tab":            prev_tab,
+    "go_back":                 go_back,
+    "back":                    go_back,
+    "go_forward":              go_forward,
+    "forward":                 go_forward,
+    "zoom_in":                 zoom_in,
+    "zoom_out":                zoom_out,
+    "zoom_reset":              zoom_reset,
+    "reset_zoom":              zoom_reset,
+    "find_on_page":            find_on_page,
+    "search_page":             find_on_page,
+    "scroll_up":               scroll_up,
+    "scroll_down":             scroll_down,
+    "scroll_top":              scroll_top,
+    "scroll_bottom":           scroll_bottom,
+    "top_of_page":             scroll_top,
+    "bottom_of_page":          scroll_bottom,
+    "page_up":                 page_up,
+    "page_down":               page_down,
+    "copy":                    copy,
+    "paste":                   paste,
+    "cut":                     cut,
+    "undo":                    undo,
+    "redo":                    redo,
+    "select_all":              select_all,
+    "save":                    save_file,
+    "save_file":               save_file,
+    "enter":                   press_enter,
+    "press_enter":             press_enter,
+    "escape":                  press_escape,
+    "press_escape":            press_escape,
+    "cancel":                  press_escape,
+    "play_pause":              media_play_pause,
+    "playpause":               media_play_pause,
+    "toggle_media":            media_play_pause,
+    "next_track":              media_next,
+    "next_song":               media_next,
+    "skip":                    media_next,
+    "previous_track":          media_prev,
+    "previous_song":           media_prev,
+    "back_track":              media_prev,
+    "stop_music":              media_stop,
+    "media_stop":              media_stop,
+}
+
+def computer_settings(
+    parameters: dict,
+    response=None,
+    player=None,
+    session_memory=None,
+) -> str:
+    """
+    Bilgisayar ayarları ve UI kontrolleri.
+
+    parameters:
+        action      : İşlem adı (verilmezse description'dan Gemini ile tespit edilir)
+        description : Kullanıcının doğal dil komutu (herhangi bir dilde)
+        value       : İşleme özgü değer (ses seviyesi, yazılacak metin, tekrar sayısı vb.)
+    """
+    params      = parameters or {}
+    raw_action  = params.get("action", "").strip()
+    value       = params.get("value", None)
+
+    action = raw_action.lower().strip().replace(" ", "_").replace("-", "_")
+
+    if not action:
+        return "Choose an explicit action from computer_settings; natural-language planning belongs to the shared agent."
+
+    media = {
+        "pause_video": "pause", "pause": "pause", "stop_video": "pause",
+        "play_video": "play", "play": "play", "resume_video": "play",
+        "next_track": "next", "next_song": "next", "skip": "next",
+        "previous_track": "previous", "previous_song": "previous", "back_track": "previous",
+        "stop_music": "stop", "media_stop": "stop",
+    }
+    if action in media:
+        from actions.media_control import media_control_action
+        return media_control_action({"action": media[action]})
+    if action in {"play_pause", "playpause", "toggle_media", "toggle_play"}:
+        from actions.media_control import media_control_action
+        return media_control_action({"action": "toggle"})
+    browser = {
+        "refresh_page": "reload", "reload_page": "reload", "reload": "reload", "refresh": "reload",
+        "close_tab": "close_tab", "new_tab": "new_tab", "open_tab": "new_tab",
+        "go_back": "back", "back": "back", "go_forward": "forward", "forward": "forward",
+    }
+    if action in browser:
+        from actions.browser_control import browser_control
+        return browser_control({"action": browser[action]})
+    if action in {"maximize", "maximize_window"} and _OS == "Windows":
+        from local_mode.windows import WindowController
+        return WindowController().maximize(str(params.get("title") or ""))
+
+
+    if action == "volume_set":
+        try:
+            volume_set(int(50 if value is None else value))
+            return f"Volume set to {value}%."
+        except Exception as e:
+            return f"Could not set volume: {e}"
+
+    if action in ("brightness_set", "set_brightness", "brightness"):
+        if action == "brightness" and value is None:
+            return "Brightness up or down? Say 'brightness up' or 'brightness down', sir."
+        try:
+            brightness_set(int(50 if value is None else value))
+            return f"Brightness set to {value}%."
+        except Exception as e:
+            return f"Could not set brightness: {e}"
+
+    if action == "wifi_status":
+        return wifi_status()
+
+    if action in ("app_volume", "mute_app", "set_app_volume"):
+        app_name = str(params.get("app_name") or params.get("value") or value or "").strip()
+        if not app_name:
+            return "Which app's volume, sir?"
+        if action == "mute_app":
+            return app_volume(app_name, None)
+        try:
+            return app_volume(app_name, int(value) if value is not None else None)
+        except Exception as e:
+            return f"App volume failed: {e}"
+
+    if action in ("wifi_on", "wifi_off"):
+        return _win_wifi_set(action == "wifi_on") if _OS == "Windows" else toggle_wifi() or f"{action} toggled."
+
+    if action in ("type_text", "write_on_screen", "type", "write"):
+        text = str(value or params.get("text", ""))
+        if not text:
+            return "No text provided to type, sir."
+        enter_after = bool(params.get("press_enter", False))
+        type_text(text, press_enter_after=enter_after)
+        return f"Typed: {text[:60]}"
+
+    if action == "press_key":
+        key = str(value or params.get("key", ""))
+        if not key:
+            return "No key specified, sir."
+        press_key(key)
+        return f"Pressed: {key}"
+
+    if action in ("reload_n", "refresh_n", "reload_page_n"):
+        try:
+            n = int(value or 1)
+            reload_page_n(n)
+            return f"Reloaded page {n} time{'s' if n > 1 else ''}."
+        except Exception as e:
+            return f"Could not reload: {e}"
+
+    if action in ("scroll_up", "scroll_down"):
+        try:
+            amount = int(value or 500)
+            scroll_up(amount) if action == "scroll_up" else scroll_down(amount)
+            return f"Scrolled {'up' if action == 'scroll_up' else 'down'}."
+        except Exception as e:
+            return f"Scroll failed: {e}"
+
+    func = ACTION_MAP.get(action)
+    if not func:
+        return f"Unknown action: '{raw_action}', sir."
+
+    try:
+        func()
+        return f"Done: {action}."
+    except Exception as e:
+        return f"Action failed ({action}): {e}"

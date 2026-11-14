@@ -1,0 +1,471 @@
+//! Bounded one-shot process runner shared by the shell tool and git.
+//!
+//! Costs two short-lived reader threads per call (the old runners used four)
+//! and never waits on a pipe that a surviving grandchild keeps open: output is
+//! collected with a grace deadline once the child is gone.
+
+use std::io::{self, Read};
+use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+
+use shared_child::SharedChild;
+
+const READER_STACK: usize = 128 * 1024;
+const READ_CHUNK: usize = 16 * 1024;
+/// How long output may keep arriving after a child exited normally. A
+/// backgrounded grandchild (`cmd &`) inherits the pipes and would otherwise
+/// pin the caller until it exits.
+const EXITED_DRAIN_GRACE: Duration = Duration::from_millis(750);
+const KILLED_DRAIN_GRACE: Duration = Duration::from_millis(500);
+
+#[derive(Clone, Copy)]
+pub struct Limits {
+    pub stdout: usize,
+    pub stderr: usize,
+    /// Kill the child as soon as stdout passes its cap instead of letting it
+    /// run on for output nobody will read.
+    pub stop_on_stdout_cap: bool,
+}
+
+#[derive(Debug, Default)]
+pub struct Captured {
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+    pub stdout_truncated: bool,
+    pub stderr_truncated: bool,
+    pub exit_code: Option<i32>,
+    pub timed_out: bool,
+    pub cancelled: bool,
+}
+
+#[derive(Default)]
+pub struct CancelHandle {
+    cancelled: AtomicBool,
+    killer: Mutex<Option<Box<dyn FnOnce() + Send>>>,
+}
+
+impl CancelHandle {
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Release);
+        if let Some(kill) = self.killer.lock().unwrap_or_else(|e| e.into_inner()).take() {
+            kill();
+        }
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Acquire)
+    }
+
+    fn bind(&self, kill: impl FnOnce() + Send + 'static) -> bool {
+        let mut guard = self.killer.lock().unwrap_or_else(|e| e.into_inner());
+        if self.cancelled.load(Ordering::Acquire) {
+            drop(guard);
+            kill();
+            return false;
+        }
+        *guard = Some(Box::new(kill));
+        true
+    }
+
+    fn clear(&self) {
+        let _ = self.killer.lock().unwrap_or_else(|e| e.into_inner()).take();
+    }
+}
+
+#[derive(Default)]
+struct Drained {
+    bytes: Vec<u8>,
+    truncated: bool,
+}
+
+struct Reader {
+    shared: Arc<Mutex<Drained>>,
+    done: mpsc::Receiver<()>,
+}
+
+/// Keeps reading past the cap so the child never blocks on a full pipe, unless
+/// `on_cap` is given, which is called once when the cap is first exceeded.
+fn drain<R: Read>(mut reader: R, cap: usize, shared: &Mutex<Drained>, on_cap: Option<&dyn Fn()>) {
+    let mut buf = [0u8; READ_CHUNK];
+    loop {
+        match reader.read(&mut buf) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => {
+                let mut out = shared.lock().unwrap_or_else(|e| e.into_inner());
+                let take = cap.saturating_sub(out.bytes.len()).min(n);
+                out.bytes.extend_from_slice(&buf[..take]);
+                if take < n {
+                    let first = !out.truncated;
+                    out.truncated = true;
+                    drop(out);
+                    if let (true, Some(stop)) = (first, on_cap) {
+                        stop();
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn spawn_reader<R: Read + Send + 'static>(
+    name: &'static str,
+    reader: R,
+    cap: usize,
+    on_cap: Option<Arc<SharedChild>>,
+) -> io::Result<Reader> {
+    let shared = Arc::new(Mutex::new(Drained::default()));
+    let (tx, done) = mpsc::channel();
+    let writer = shared.clone();
+    thread::Builder::new()
+        .name(name.into())
+        .stack_size(READER_STACK)
+        .spawn(move || {
+            let stop = on_cap.map(|child| {
+                move || {
+                    let _ = child.kill();
+                }
+            });
+            drain(reader, cap, &writer, stop.as_ref().map(|f| f as &dyn Fn()));
+            let _ = tx.send(());
+        })?;
+    Ok(Reader { shared, done })
+}
+
+/// Waits for EOF up to `grace`, then returns whatever has arrived. The reader
+/// stays bounded by `cap` and exits on its own when the pipe finally closes.
+fn collect(reader: &Reader, grace: Duration) -> Drained {
+    let _ = reader.done.recv_timeout(grace);
+    std::mem::take(&mut *reader.shared.lock().unwrap_or_else(|e| e.into_inner()))
+}
+
+#[cfg(unix)]
+struct OwnedGroup(i32);
+#[cfg(unix)]
+impl Drop for OwnedGroup {
+    fn drop(&mut self) {
+        unsafe {
+            libc::kill(-self.0, libc::SIGKILL);
+        }
+    }
+}
+
+/// `cmd` must already pipe stdout and stderr. Blocks the calling thread, so run
+/// it on the blocking pool.
+/// Writes `input` to the child's stdin from a short thread, so the caller never
+/// blocks on a child that reads none of it, then closes the pipe.
+fn feed_stdin(child: &SharedChild, input: Vec<u8>) -> io::Result<()> {
+    use std::io::Write;
+    let Some(mut stdin) = child.take_stdin() else {
+        return Err(io::Error::other("no stdin pipe"));
+    };
+    thread::Builder::new()
+        .name("terax-cap-in".into())
+        .stack_size(READER_STACK)
+        .spawn(move || {
+            let _ = stdin.write_all(&input);
+        })
+        .map(|_| ())
+}
+
+/// Like `run`, with optional bytes written to the child's stdin (`cmd` must
+/// pipe stdin when `input` is given).
+pub fn run_with_input(
+    cmd: &mut Command,
+    timeout: Duration,
+    limits: Limits,
+    input: Option<Vec<u8>>,
+) -> io::Result<Captured> {
+    run_inner(cmd, timeout, limits, true, None, input)
+}
+
+pub fn run(cmd: &mut Command, timeout: Duration, limits: Limits) -> io::Result<Captured> {
+    run_inner(cmd, timeout, limits, false, None, None)
+}
+
+pub fn run_tree(cmd: &mut Command, timeout: Duration, limits: Limits) -> io::Result<Captured> {
+    run_inner(cmd, timeout, limits, true, None, None)
+}
+
+pub fn run_tree_cancellable(
+    cmd: &mut Command,
+    timeout: Duration,
+    limits: Limits,
+    cancel: Option<&CancelHandle>,
+) -> io::Result<Captured> {
+    run_inner(cmd, timeout, limits, true, cancel, None)
+}
+
+fn run_inner(
+    cmd: &mut Command,
+    timeout: Duration,
+    limits: Limits,
+    _tree: bool,
+    cancel: Option<&CancelHandle>,
+    input: Option<Vec<u8>>,
+) -> io::Result<Captured> {
+    if cancel.is_some_and(CancelHandle::is_cancelled) {
+        return Ok(Captured {
+            cancelled: true,
+            ..Captured::default()
+        });
+    }
+    #[cfg(unix)]
+    if _tree {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
+    let child = Arc::new(SharedChild::spawn(cmd)?);
+    let fail = |error: io::Error| {
+        let _ = child.kill();
+        let _ = child.wait();
+        error
+    };
+    #[cfg(windows)]
+    let job = Arc::new(Mutex::new(if _tree {
+        Some(super::job::ProcessJob::create_for(child.id()).map_err(&fail)?)
+    } else {
+        None
+    }));
+    #[cfg(unix)]
+    let group = Arc::new(Mutex::new(_tree.then(|| OwnedGroup(child.id() as i32))));
+    if let Some(handle) = cancel {
+        let child_for_cancel = child.clone();
+        #[cfg(windows)]
+        let job_for_cancel = job.clone();
+        #[cfg(unix)]
+        let group_for_cancel = group.clone();
+        if !handle.bind(move || {
+            #[cfg(unix)]
+            let _ = group_for_cancel.lock().unwrap_or_else(|e| e.into_inner()).take();
+            let _ = child_for_cancel.kill();
+            #[cfg(windows)]
+            let _ = job_for_cancel.lock().unwrap_or_else(|e| e.into_inner()).take();
+        }) {
+            let _ = child.wait();
+            return Ok(Captured {
+                cancelled: true,
+                ..Captured::default()
+            });
+        }
+    }
+    let stdout = child
+        .take_stdout()
+        .ok_or_else(|| {
+            if let Some(handle) = cancel {
+                handle.clear();
+            }
+            fail(io::Error::other("no stdout pipe"))
+        })?;
+    let stderr = child
+        .take_stderr()
+        .ok_or_else(|| {
+            if let Some(handle) = cancel {
+                handle.clear();
+            }
+            fail(io::Error::other("no stderr pipe"))
+        })?;
+    let stdout_reader = spawn_reader(
+        "terax-cap-out",
+        stdout,
+        limits.stdout,
+        limits.stop_on_stdout_cap.then(|| child.clone()),
+    )
+    .map_err(|e| {
+        if let Some(handle) = cancel {
+            handle.clear();
+        }
+        fail(e)
+    })?;
+    let stderr_reader = spawn_reader("terax-cap-err", stderr, limits.stderr, None).map_err(|e| {
+        if let Some(handle) = cancel {
+            handle.clear();
+        }
+        fail(e)
+    })?;
+    if let Some(input) = input {
+        feed_stdin(&child, input).map_err(|e| { if let Some(handle) = cancel { handle.clear(); } fail(e) })?;
+    }
+
+    let waited = child.wait_timeout(timeout);
+    if let Some(handle) = cancel {
+        handle.clear();
+    }
+    let cancelled = cancel.is_some_and(CancelHandle::is_cancelled);
+    let (exit_code, timed_out) = match waited? {
+        Some(status) if !cancelled => (status.code(), false),
+        Some(_) => (None, false),
+        None => {
+            let _ = child.kill();
+            let _ = child.wait();
+            (None, !cancelled)
+        }
+    };
+
+    #[cfg(windows)]
+    let _ = job.lock().unwrap_or_else(|e| e.into_inner()).take(); // End the owned process tree before waiting for inherited pipes.
+    #[cfg(unix)]
+    let _ = group.lock().unwrap_or_else(|e| e.into_inner()).take();
+    let grace = if timed_out || cancelled {
+        KILLED_DRAIN_GRACE
+    } else {
+        EXITED_DRAIN_GRACE
+    };
+    let out = collect(&stdout_reader, grace);
+    let err = collect(&stderr_reader, grace);
+    Ok(Captured {
+        stdout: out.bytes,
+        stderr: err.bytes,
+        stdout_truncated: out.truncated,
+        stderr_truncated: err.truncated,
+        exit_code,
+        timed_out,
+        cancelled,
+    })
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::process::Stdio;
+    use std::time::Instant;
+
+    fn sh(script: &str) -> Command {
+        let mut cmd = Command::new("/bin/sh");
+        cmd.arg("-c")
+            .arg(script)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        cmd
+    }
+
+    const LIMITS: Limits = Limits {
+        stdout: 1024,
+        stderr: 1024,
+        stop_on_stdout_cap: false,
+    };
+
+    #[test]
+    fn captures_both_streams_and_the_exit_code() {
+        let out = run(
+            &mut sh("printf out; printf err >&2; exit 3"),
+            Duration::from_secs(5),
+            LIMITS,
+        )
+        .unwrap();
+        assert_eq!(out.stdout, b"out");
+        assert_eq!(out.stderr, b"err");
+        assert_eq!(out.exit_code, Some(3));
+        assert!(!out.timed_out);
+    }
+
+    #[test]
+    fn caps_each_stream_and_reports_truncation_without_stalling_the_child() {
+        let out = run(
+            &mut sh("head -c 200000 /dev/zero; head -c 5000 /dev/zero >&2"),
+            Duration::from_secs(10),
+            LIMITS,
+        )
+        .unwrap();
+        assert_eq!(out.stdout.len(), 1024);
+        assert!(out.stdout_truncated);
+        assert_eq!(out.stderr.len(), 1024);
+        assert!(out.stderr_truncated);
+        assert_eq!(out.exit_code, Some(0));
+    }
+
+    #[test]
+    fn a_child_can_be_stopped_the_moment_it_exceeds_the_stdout_cap() {
+        let started = Instant::now();
+        let out = run(
+            &mut sh("yes | head -c 100000000"),
+            Duration::from_secs(30),
+            Limits {
+                stdout: 4096,
+                stderr: 1024,
+                stop_on_stdout_cap: true,
+            },
+        )
+        .unwrap();
+        assert!(out.stdout_truncated);
+        assert_eq!(out.stdout.len(), 4096);
+        assert!(!out.timed_out);
+        assert!(started.elapsed() < Duration::from_secs(10));
+    }
+
+    #[test]
+    fn kills_a_child_that_outlives_the_timeout() {
+        let started = Instant::now();
+        let out = run(&mut sh("sleep 30"), Duration::from_millis(200), LIMITS).unwrap();
+        assert!(out.timed_out);
+        assert_eq!(out.exit_code, None);
+        assert!(started.elapsed() < Duration::from_secs(5));
+    }
+
+    #[test]
+    fn a_backgrounded_grandchild_holding_the_pipes_does_not_pin_the_caller() {
+        let started = Instant::now();
+        let out = run(
+            &mut sh("printf done; sleep 30 &"),
+            Duration::from_secs(10),
+            LIMITS,
+        )
+        .unwrap();
+        assert_eq!(out.exit_code, Some(0));
+        assert!(!out.timed_out);
+        assert_eq!(out.stdout, b"done", "output written before exit is kept");
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "returned after {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[test]
+    fn input_reaches_the_child_stdin_and_is_closed() {
+        let mut cmd = Command::new("/bin/cat");
+        cmd.stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let payload = vec![b'x'; 300_000];
+        let out = run_with_input(
+            &mut cmd,
+            Duration::from_secs(10),
+            Limits {
+                stdout: 1_000_000,
+                stderr: 1024,
+                stop_on_stdout_cap: false,
+            },
+            Some(payload.clone()),
+        )
+        .unwrap();
+        assert_eq!(out.exit_code, Some(0));
+        assert_eq!(out.stdout, payload);
+    }
+
+    #[test]
+    fn a_child_that_ignores_stdin_does_not_block_the_caller() {
+        let mut cmd = sh("exit 0");
+        cmd.stdin(Stdio::piped());
+        let started = Instant::now();
+        let out = run_with_input(
+            &mut cmd,
+            Duration::from_secs(10),
+            LIMITS,
+            Some(vec![0u8; 2_000_000]),
+        )
+        .unwrap();
+        assert_eq!(out.exit_code, Some(0));
+        assert!(started.elapsed() < Duration::from_secs(5));
+    }
+
+    #[test]
+    fn spawn_failure_is_an_error() {
+        let mut cmd = Command::new("/definitely/not/a/binary");
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+        assert!(run(&mut cmd, Duration::from_secs(1), LIMITS).is_err());
+    }
+}

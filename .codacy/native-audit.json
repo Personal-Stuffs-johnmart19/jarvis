@@ -1,0 +1,1341 @@
+{
+  "version": 1,
+  "scope": "Explicit reviewed exact source-syntax, platform FFI and test dispositions; not a file-wide, rule-wide, platform-wide or unsafe-code exemption.",
+  "normalization": "Decode UTF-8, remove one leading BOM, normalize CRLF and CR to LF. File sha256 hashes the complete normalized text, retaining its final newline. line_sha256 hashes the start line without its newline. span_sha256 hashes lines startLine..endLine inclusive joined by LF, without a trailing LF.",
+  "raw_sarif_sha256": "84ae0180b5376023c4f8fdfe984831714d16c5cd5f23d6967edffbdac511a7d5",
+  "provenance_note": "Raw report SHA identifies the reviewed input only; a future complete SARIF run must still be evaluated and is not required to have this SHA.",
+  "review_axes": {
+    "correctness": "All 107 existing dispositions are retained. During the current upstream integration, 106 spans remain byte-identical after LF/noBOM normalization; the LSP cleanup disposition is narrowed to the root-reviewed inline signal_kill expression. Changed-file dispositions are uniquely anchored by their recorded containing function; new analyzer findings still require separate review.",
+    "readability": "Every exception names its containing function and records the native contract; source or span changes invalidate the record.",
+    "architecture": "Platform-specific FFI and bench/test modules remain separated; no scanner rules are disabled.",
+    "security": "Broad syntax rules remain enabled. Exact reviewed command-input parsing, FFI and owned-test false positives are fingerprinted. New findings, errors, suppressions or missing/changed fingerprints fail closed.",
+    "performance": "Read-only drive/RSS/process queries avoid helper-process creation; benchmark diagnostics do not enter ordinary builds."
+  },
+  "files": [
+    {
+      "path": "apps/desktop/src-tauri/src/job.rs",
+      "sha256": "61ad370d54386145c8b4ccdc6b756ca975e8a7253fadbf584e583dd4847ed1bb",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 27,
+          "end_line": 63,
+          "function": "create_for",
+          "line_sha256": "60e7632e2db51a1b5f2b2584ea6685b8acff33c085b817b740be452b7aadd9d4",
+          "span_sha256": "57c58cc1c55856675f09b34dd88a7a865e3ed78d722a8dabfb50be1b37682379",
+          "rationale": "create_for: Windows Job Object FFI: handles are checked for null/INVALID_HANDLE_VALUE, size-tagged zeroed job information stays live during the call, failure paths close owned handles, and Drop closes the unique live handle. This disposition covers the recorded unsafe block only, not arbitrary process admission."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 70,
+          "end_line": 70,
+          "function": "drop",
+          "line_sha256": "73f156450ad9f5ad385f14643042e457d741c33560b8358a6a1b078d3c124c1b",
+          "span_sha256": "73f156450ad9f5ad385f14643042e457d741c33560b8358a6a1b078d3c124c1b",
+          "rationale": "drop: Windows Job Object FFI: handles are checked for null/INVALID_HANDLE_VALUE, size-tagged zeroed job information stays live during the call, failure paths close owned handles, and Drop closes the unique live handle. This disposition covers the recorded unsafe block only, not arbitrary process admission."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/ai_sessions.rs",
+      "sha256": "54080799a61bcdb3b8364a3ee7b44bc2263a6b3a0baa64141656a940dbcbbd4f",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 203,
+          "end_line": 203,
+          "function": "routine_sync",
+          "line_sha256": "4947b033608cc1b23324f2a93be039125f88ce2658ca4011bdad4c306b9fcd4d",
+          "span_sha256": "4947b033608cc1b23324f2a93be039125f88ce2658ca4011bdad4c306b9fcd4d",
+          "rationale": "routine_sync: routine_sync passes the live borrowed File descriptor to fsync and checks the syscall result. No raw pointer, executable lookup, or untrusted buffer is involved."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/bench.rs",
+      "sha256": "8f61791de5d4a0e92dd5b2e3154022e906fcc31eef5442499036c371baedb5a4",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 365,
+          "end_line": 370,
+          "function": "send_key",
+          "line_sha256": "ce36b1132dc32ce6b7cf90299d27ac5c578043aa394f9c106a88c696337e11f2",
+          "span_sha256": "deda6ba32ebe5b8071a9b4001edfcb43455faa16001c537353e86f69f9263c50",
+          "rationale": "send_key: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 371,
+          "end_line": 371,
+          "function": "send_key",
+          "line_sha256": "e938bcd5345fa6f54b808b73f09b16cfa978b0bfce84699332a3941c2242bd8f",
+          "span_sha256": "e938bcd5345fa6f54b808b73f09b16cfa978b0bfce84699332a3941c2242bd8f",
+          "rationale": "send_key: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 372,
+          "end_line": 372,
+          "function": "send_key",
+          "line_sha256": "bcec837a0ac0cd89e5f833f41eff76ec7a2f3c6ae065619dac85c3abd72db78d",
+          "span_sha256": "bcec837a0ac0cd89e5f833f41eff76ec7a2f3c6ae065619dac85c3abd72db78d",
+          "rationale": "send_key: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 373,
+          "end_line": 387,
+          "function": "send_key",
+          "line_sha256": "0c93ffa7f0a0743bee3ae0f3223f19a9ec174c1f9f0a87c3f581d0c441ce31db",
+          "span_sha256": "b9840165438b32d184ed5bc538d0b5dd25be9cd37bdbf03cb99886e6511083ae",
+          "rationale": "send_key: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 391,
+          "end_line": 393,
+          "function": "send_key",
+          "line_sha256": "60e7632e2db51a1b5f2b2584ea6685b8acff33c085b817b740be452b7aadd9d4",
+          "span_sha256": "a936418761e92b5db8daef7d5ba19d4e20b377eb9f2661ba9e1175cb43b2d336",
+          "rationale": "send_key: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 401,
+          "end_line": 401,
+          "function": "text_input",
+          "line_sha256": "a88f9c10b50741947d5c3d503c00f0b98bfe7dd6bbd99e5564525307b5f87209",
+          "span_sha256": "a88f9c10b50741947d5c3d503c00f0b98bfe7dd6bbd99e5564525307b5f87209",
+          "rationale": "text_input: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 407,
+          "end_line": 409,
+          "function": "text_input",
+          "line_sha256": "8ea42f4dbc8d552e553348513255e3bc8577a00b38b4d2d0310c033f36d28118",
+          "span_sha256": "86d87d8494590eb01ba49551b947e0052023153b11cd58eb25360eceb5397a04",
+          "rationale": "text_input: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 413,
+          "end_line": 415,
+          "function": "text_input",
+          "line_sha256": "8ea42f4dbc8d552e553348513255e3bc8577a00b38b4d2d0310c033f36d28118",
+          "span_sha256": "5b8ebaaadb82a7b1e0e715bb177b5078094b0faff75ac920794e419c922442d5",
+          "rationale": "text_input: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 474,
+          "end_line": 474,
+          "function": "ns_window",
+          "line_sha256": "f9c4408b5a265dd9081583fcfbae9f7c86c21894f5eb52ae0a58aa7557831e18",
+          "span_sha256": "f9c4408b5a265dd9081583fcfbae9f7c86c21894f5eb52ae0a58aa7557831e18",
+          "rationale": "ns_window: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 478,
+          "end_line": 478,
+          "function": "is_occluded",
+          "line_sha256": "f6c01ff6f7737806d21c6e3235a536dc6b9391bb490bba4456183a2a43633654",
+          "span_sha256": "f6c01ff6f7737806d21c6e3235a536dc6b9391bb490bba4456183a2a43633654",
+          "rationale": "is_occluded: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 483,
+          "end_line": 483,
+          "function": "is_key",
+          "line_sha256": "7a021cf048f85f66812c01ed3b1e498bff68848b29d4012a1fd7b894fdf1805f",
+          "span_sha256": "7a021cf048f85f66812c01ed3b1e498bff68848b29d4012a1fd7b894fdf1805f",
+          "rationale": "is_key: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 488,
+          "end_line": 488,
+          "function": "shared_application",
+          "line_sha256": "21d66ce841277e3f792990373f0d677e75b6ddc8a1930ee4c6d85bb602f08421",
+          "span_sha256": "21d66ce841277e3f792990373f0d677e75b6ddc8a1930ee4c6d85bb602f08421",
+          "rationale": "shared_application: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 492,
+          "end_line": 492,
+          "function": "app_active",
+          "line_sha256": "2ca57d916918333906d7689c87aab32b8e6060b1f92328e9ba4f040332fe5dab",
+          "span_sha256": "2ca57d916918333906d7689c87aab32b8e6060b1f92328e9ba4f040332fe5dab",
+          "rationale": "app_active: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 496,
+          "end_line": 498,
+          "function": "activate_app",
+          "line_sha256": "60e7632e2db51a1b5f2b2584ea6685b8acff33c085b817b740be452b7aadd9d4",
+          "span_sha256": "e77cb7a0548063a9743167056f3130cfea00c442ee71531788be3debc83f61fc",
+          "rationale": "activate_app: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 502,
+          "end_line": 502,
+          "function": "frame",
+          "line_sha256": "b1050d2b64e23d66888a9fedd50c3ef3eba42a288a50a79191dc812b099d80c2",
+          "span_sha256": "b1050d2b64e23d66888a9fedd50c3ef3eba42a288a50a79191dc812b099d80c2",
+          "rationale": "frame: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 517,
+          "end_line": 519,
+          "function": "set_size",
+          "line_sha256": "60e7632e2db51a1b5f2b2584ea6685b8acff33c085b817b740be452b7aadd9d4",
+          "span_sha256": "4e3f35f0029c9a5458c84002e412202cec44dd8a777fd75e1fceaedc5d956d13",
+          "rationale": "set_size: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 530,
+          "end_line": 530,
+          "function": "live_resize",
+          "line_sha256": "a88f9c10b50741947d5c3d503c00f0b98bfe7dd6bbd99e5564525307b5f87209",
+          "span_sha256": "a88f9c10b50741947d5c3d503c00f0b98bfe7dd6bbd99e5564525307b5f87209",
+          "rationale": "live_resize: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 532,
+          "end_line": 532,
+          "function": "live_resize",
+          "line_sha256": "48db598b43f058e3031ef8dbab80f86167cec980d63378b90db58871ed665c98",
+          "span_sha256": "48db598b43f058e3031ef8dbab80f86167cec980d63378b90db58871ed665c98",
+          "rationale": "live_resize: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 559,
+          "end_line": 559,
+          "function": "snapshot",
+          "line_sha256": "a88f9c10b50741947d5c3d503c00f0b98bfe7dd6bbd99e5564525307b5f87209",
+          "span_sha256": "a88f9c10b50741947d5c3d503c00f0b98bfe7dd6bbd99e5564525307b5f87209",
+          "rationale": "snapshot: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 561,
+          "end_line": 561,
+          "function": "snapshot",
+          "line_sha256": "8a5bc506df28bb4ea59b8786cf853cfdc046b9b33c506db4025f1df91b60fb62",
+          "span_sha256": "8a5bc506df28bb4ea59b8786cf853cfdc046b9b33c506db4025f1df91b60fb62",
+          "rationale": "snapshot: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 562,
+          "end_line": 562,
+          "function": "snapshot",
+          "line_sha256": "fa8b0d4c50750e56c570415a7d4e28c5df6ff06634f8ed903b333def7fe1a1d9",
+          "span_sha256": "fa8b0d4c50750e56c570415a7d4e28c5df6ff06634f8ed903b333def7fe1a1d9",
+          "rationale": "snapshot: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 563,
+          "end_line": 563,
+          "function": "snapshot",
+          "line_sha256": "b42a9cb2349c899c3894004292a11b972054ac79b19e174071e2143d64cdf694",
+          "span_sha256": "b42a9cb2349c899c3894004292a11b972054ac79b19e174071e2143d64cdf694",
+          "rationale": "snapshot: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 590,
+          "end_line": 590,
+          "function": "describe_layers",
+          "line_sha256": "653b9ccb887511b9ffb3e9f402013d8eda8b73deea611117870d9b412feba75a",
+          "span_sha256": "653b9ccb887511b9ffb3e9f402013d8eda8b73deea611117870d9b412feba75a",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 591,
+          "end_line": 591,
+          "function": "describe_layers",
+          "line_sha256": "f38eda756a73240b1cb7272ff29c985ec75f8cc82c82d9638aba95ea33ed74a7",
+          "span_sha256": "f38eda756a73240b1cb7272ff29c985ec75f8cc82c82d9638aba95ea33ed74a7",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 592,
+          "end_line": 592,
+          "function": "describe_layers",
+          "line_sha256": "7ef4c564aac0395889079700fdb94ffe6bba213484caec0d0d17eb95df7620d3",
+          "span_sha256": "7ef4c564aac0395889079700fdb94ffe6bba213484caec0d0d17eb95df7620d3",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 593,
+          "end_line": 593,
+          "function": "describe_layers",
+          "line_sha256": "5f58cdbaf0e9231343b1ce98e1800ce1e3a7a1b9cfe766ec495732b70314d7ee",
+          "span_sha256": "5f58cdbaf0e9231343b1ce98e1800ce1e3a7a1b9cfe766ec495732b70314d7ee",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 594,
+          "end_line": 594,
+          "function": "describe_layers",
+          "line_sha256": "951a0b834b4a88c9dd6946218769398438ad0900d105955da7d535e60dfaff8a",
+          "span_sha256": "951a0b834b4a88c9dd6946218769398438ad0900d105955da7d535e60dfaff8a",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 595,
+          "end_line": 595,
+          "function": "describe_layers",
+          "line_sha256": "c8aaeb466c3f76823e1e93929ea01293c772240c5b73d5744d218814cce29a02",
+          "span_sha256": "c8aaeb466c3f76823e1e93929ea01293c772240c5b73d5744d218814cce29a02",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 596,
+          "end_line": 596,
+          "function": "describe_layers",
+          "line_sha256": "44217faf6362afec1de953c0dd6800cee06a33a286e4f750d784b91fce1593f0",
+          "span_sha256": "44217faf6362afec1de953c0dd6800cee06a33a286e4f750d784b91fce1593f0",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 597,
+          "end_line": 597,
+          "function": "describe_layers",
+          "line_sha256": "8839b9f85e675a54ff981b453c712597ae6300e8f74717be5dfc6e69c04f7c29",
+          "span_sha256": "8839b9f85e675a54ff981b453c712597ae6300e8f74717be5dfc6e69c04f7c29",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 598,
+          "end_line": 598,
+          "function": "describe_layers",
+          "line_sha256": "47980713158628fa0c0c3252ca5148a481e040ff2d642067629cfc441615cf4c",
+          "span_sha256": "47980713158628fa0c0c3252ca5148a481e040ff2d642067629cfc441615cf4c",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 601,
+          "end_line": 601,
+          "function": "describe_layers",
+          "line_sha256": "9c36b1a398a631085d6af94f469281e1961be21275658fb0713f4b98a1d0afe7",
+          "span_sha256": "9c36b1a398a631085d6af94f469281e1961be21275658fb0713f4b98a1d0afe7",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 605,
+          "end_line": 605,
+          "function": "describe_layers",
+          "line_sha256": "6b30d37eaed56751dc9df9313a5f28659fae8da4a7dcfbe8233bfed75bb569ce",
+          "span_sha256": "6b30d37eaed56751dc9df9313a5f28659fae8da4a7dcfbe8233bfed75bb569ce",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 648,
+          "end_line": 648,
+          "function": "describe_layers",
+          "line_sha256": "e39fccfd3a7a78384e362338c68cca39c190ab299286b1ebac2c078d29aebe64",
+          "span_sha256": "e39fccfd3a7a78384e362338c68cca39c190ab299286b1ebac2c078d29aebe64",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 650,
+          "end_line": 650,
+          "function": "describe_layers",
+          "line_sha256": "e2621c4abb497be9a2b9b0a0cf5c5fc054c9b0aa2930fbef95d0be417f920389",
+          "span_sha256": "e2621c4abb497be9a2b9b0a0cf5c5fc054c9b0aa2930fbef95d0be417f920389",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 652,
+          "end_line": 652,
+          "function": "describe_layers",
+          "line_sha256": "cda17174babc92e51558adccdcddda151beeaa0548c870141e6abbf6b31b838a",
+          "span_sha256": "cda17174babc92e51558adccdcddda151beeaa0548c870141e6abbf6b31b838a",
+          "rationale": "describe_layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 672,
+          "end_line": 672,
+          "function": "layers",
+          "line_sha256": "a88f9c10b50741947d5c3d503c00f0b98bfe7dd6bbd99e5564525307b5f87209",
+          "span_sha256": "a88f9c10b50741947d5c3d503c00f0b98bfe7dd6bbd99e5564525307b5f87209",
+          "rationale": "layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 673,
+          "end_line": 673,
+          "function": "layers",
+          "line_sha256": "1a3dd8598dd6d05c1bd3b76bbc32412f8afc981cfbabec646e098e142773ebc1",
+          "span_sha256": "1a3dd8598dd6d05c1bd3b76bbc32412f8afc981cfbabec646e098e142773ebc1",
+          "rationale": "layers: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 697,
+          "end_line": 697,
+          "function": "gc",
+          "line_sha256": "a88f9c10b50741947d5c3d503c00f0b98bfe7dd6bbd99e5564525307b5f87209",
+          "span_sha256": "a88f9c10b50741947d5c3d503c00f0b98bfe7dd6bbd99e5564525307b5f87209",
+          "rationale": "gc: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 698,
+          "end_line": 698,
+          "function": "gc",
+          "line_sha256": "e8d5c07cde415e0a17ce23a2f17f474cdf2fd30be28c0ca4e99e15852c41f0bf",
+          "span_sha256": "e8d5c07cde415e0a17ce23a2f17f474cdf2fd30be28c0ca4e99e15852c41f0bf",
+          "rationale": "gc: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 699,
+          "end_line": 699,
+          "function": "gc",
+          "line_sha256": "2b7f7e68e05652cff3b747ba61dfe2092be55ddd7e57735bc28a8d643f543e50",
+          "span_sha256": "2b7f7e68e05652cff3b747ba61dfe2092be55ddd7e57735bc28a8d643f543e50",
+          "rationale": "gc: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 700,
+          "end_line": 702,
+          "function": "gc",
+          "line_sha256": "52f5540e6d37bd947f86d53aa33a2878d3af8d88f2551d18c824cb204f7e03c0",
+          "span_sha256": "744c01e6333bdb7bbb454c4dff3b76e1f8349abf53f2fd3111d3c6a1cc0a708d",
+          "rationale": "gc: Feature-gated bench-only AppKit/WebView diagnostics (modules/mod.rs cfg(feature=\"bench\")); current native operations run through main-thread/with_webview callbacks. Receivers are live native objects, retained objects outlive message sends, UTF8String is null-checked and copied while its NSString is retained, and array indices are bounded by the retained array count. Native borrows do not escape these immediate calls or cross an await. The ns_window static annotation should be tightened for maintainability; this record does not authorize future escaping borrows."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/fs/clipboard.rs",
+      "sha256": "34d32632b24ebef540f6cfee894bc30d8f8eba3d679dce5b67ebcb74cde71073",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 51,
+          "end_line": 51,
+          "function": "read_file_paths",
+          "line_sha256": "0e5bb586d052c577400809a018cb5e1dd2998940fdb66169fc434fad9ab199a7",
+          "span_sha256": "0e5bb586d052c577400809a018cb5e1dd2998940fdb66169fc434fad9ab199a7",
+          "rationale": "read_file_paths: Platform clipboard FFI: macOS reads an immutable SDK pasteboard type on the main queue; Windows opens the clipboard under an RAII guard, borrows its non-null CF_HDROP handle without freeing it, queries string lengths, allocates len+1 UTF-16 units and bounds the fill by that buffer. All buffers/handles remain live for each recorded call."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 80,
+          "end_line": 80,
+          "function": "open_clipboard",
+          "line_sha256": "4f0da9cd5a5bcb86ddb68268aa8f75935c2dcedcaa5334fa8129484bfa5b6e4c",
+          "span_sha256": "4f0da9cd5a5bcb86ddb68268aa8f75935c2dcedcaa5334fa8129484bfa5b6e4c",
+          "rationale": "open_clipboard: Platform clipboard FFI: macOS reads an immutable SDK pasteboard type on the main queue; Windows opens the clipboard under an RAII guard, borrows its non-null CF_HDROP handle without freeing it, queries string lengths, allocates len+1 UTF-16 units and bounds the fill by that buffer. All buffers/handles remain live for each recorded call."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 92,
+          "end_line": 92,
+          "function": "drop",
+          "line_sha256": "25d2a7c54adc533b55ddde385807a0e967523ea5e415e7d368e7a449d289d73c",
+          "span_sha256": "25d2a7c54adc533b55ddde385807a0e967523ea5e415e7d368e7a449d289d73c",
+          "rationale": "drop: Platform clipboard FFI: macOS reads an immutable SDK pasteboard type on the main queue; Windows opens the clipboard under an RAII guard, borrows its non-null CF_HDROP handle without freeing it, queries string lengths, allocates len+1 UTF-16 units and bounds the fill by that buffer. All buffers/handles remain live for each recorded call."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 103,
+          "end_line": 103,
+          "function": "read_file_paths",
+          "line_sha256": "e9a494e09a9ace8e8a56645e2dc0b65feb31b46ab77112932c741db70276f938",
+          "span_sha256": "e9a494e09a9ace8e8a56645e2dc0b65feb31b46ab77112932c741db70276f938",
+          "rationale": "read_file_paths: Platform clipboard FFI: macOS reads an immutable SDK pasteboard type on the main queue; Windows opens the clipboard under an RAII guard, borrows its non-null CF_HDROP handle without freeing it, queries string lengths, allocates len+1 UTF-16 units and bounds the fill by that buffer. All buffers/handles remain live for each recorded call."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 105,
+          "end_line": 105,
+          "function": "read_file_paths",
+          "line_sha256": "daef84e9ad70d2dd9449485e4242149afdb679519686c9702768e150c261c78a",
+          "span_sha256": "daef84e9ad70d2dd9449485e4242149afdb679519686c9702768e150c261c78a",
+          "rationale": "read_file_paths: Platform clipboard FFI: macOS reads an immutable SDK pasteboard type on the main queue; Windows opens the clipboard under an RAII guard, borrows its non-null CF_HDROP handle without freeing it, queries string lengths, allocates len+1 UTF-16 units and bounds the fill by that buffer. All buffers/handles remain live for each recorded call."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 107,
+          "end_line": 107,
+          "function": "read_file_paths",
+          "line_sha256": "6651dec5caf6fcd2e2703db030490ee94dfaf6fb670c6db61bdb92d2b077d5ac",
+          "span_sha256": "6651dec5caf6fcd2e2703db030490ee94dfaf6fb670c6db61bdb92d2b077d5ac",
+          "rationale": "read_file_paths: Platform clipboard FFI: macOS reads an immutable SDK pasteboard type on the main queue; Windows opens the clipboard under an RAII guard, borrows its non-null CF_HDROP handle without freeing it, queries string lengths, allocates len+1 UTF-16 units and bounds the fill by that buffer. All buffers/handles remain live for each recorded call."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 113,
+          "end_line": 113,
+          "function": "read_file_paths",
+          "line_sha256": "a5516435e2e2117b59d1ea7eb7ad5b2c7c90f0eabeb6081ad843224dfc0a01ab",
+          "span_sha256": "a5516435e2e2117b59d1ea7eb7ad5b2c7c90f0eabeb6081ad843224dfc0a01ab",
+          "rationale": "read_file_paths: Platform clipboard FFI: macOS reads an immutable SDK pasteboard type on the main queue; Windows opens the clipboard under an RAII guard, borrows its non-null CF_HDROP handle without freeing it, queries string lengths, allocates len+1 UTF-16 units and bounds the fill by that buffer. All buffers/handles remain live for each recorded call."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/fs/mutate.rs",
+      "sha256": "28ac8cdc5417446ef002e739289c1bc78c79fd8ddc7952eb3e8201dc4f59cc25",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 143,
+          "end_line": 143,
+          "function": "rename_no_replace",
+          "line_sha256": "b87d43579a993f4c98fbe5d2ef7a907c174c3bb33e91de17308a9ffe0767d6bb",
+          "span_sha256": "b87d43579a993f4c98fbe5d2ef7a907c174c3bb33e91de17308a9ffe0767d6bb",
+          "rationale": "rename_no_replace: Atomic native rename/move FFI uses live locally owned C/UTF-16 path buffers with the platform no-replace/replace flags, checks the return value and surfaces OS errors. The unsafe syntax is required for these syscalls; this record does not exempt path authorization or file-publication checks."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 155,
+          "end_line": 163,
+          "function": "rename_no_replace",
+          "line_sha256": "f8f1d4cfbc34bc4907735f1b88447ec09568c740ef9bdac9da8db4a4360a0e37",
+          "span_sha256": "bac29e19ed216829fd57ede6ee1869f40662839cfe6603194ef16d89de280cb6",
+          "rationale": "rename_no_replace: Atomic native rename/move FFI uses live locally owned C/UTF-16 path buffers with the platform no-replace/replace flags, checks the return value and surfaces OS errors. The unsafe syntax is required for these syscalls; this record does not exempt path authorization or file-publication checks."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 186,
+          "end_line": 186,
+          "function": "move_file_windows",
+          "line_sha256": "153d354eabfe558eccc4483f3d3741006e2e616a73d4f61dba4e359ae5fd3dac",
+          "span_sha256": "153d354eabfe558eccc4483f3d3741006e2e616a73d4f61dba4e359ae5fd3dac",
+          "rationale": "move_file_windows: Atomic native rename/move FFI uses live locally owned C/UTF-16 path buffers with the platform no-replace/replace flags, checks the return value and surfaces OS errors. The unsafe syntax is required for these syscalls; this record does not exempt path authorization or file-publication checks."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/fs/watch/macos.rs",
+      "sha256": "8f7ea4369275322bd1098ca46e98b2c73abd6ad3e21894bde76c304cc014ad03",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 48,
+          "end_line": 48,
+          "function": "release_context",
+          "line_sha256": "b0b99a6497b29daca1ee3424cb07597e31c4cf29d0ecf0728e2ce28138dc62b7",
+          "span_sha256": "b0b99a6497b29daca1ee3424cb07597e31c4cf29d0ecf0728e2ce28138dc62b7",
+          "rationale": "release_context: FSEvents/libdispatch bridge: boxed callback context is registered with the stream release callback, event arrays and C strings are borrowed only during the native callback, CF arrays/strings and stream/queue handles have explicit release paths. The stream owns context lifetime through queued callback teardown; callback data is not retained as raw pointers by Rust. The recorded event-ID test only queries a scalar API value."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 59,
+          "end_line": 59,
+          "function": "callback",
+          "line_sha256": "fc2faab3b1ce7a3cf76b26c5f08b2a7fca709c8a4b4330a23c1c1dd791d7da3c",
+          "span_sha256": "fc2faab3b1ce7a3cf76b26c5f08b2a7fca709c8a4b4330a23c1c1dd791d7da3c",
+          "rationale": "callback: FSEvents/libdispatch bridge: boxed callback context is registered with the stream release callback, event arrays and C strings are borrowed only during the native callback, CF arrays/strings and stream/queue handles have explicit release paths. The stream owns context lifetime through queued callback teardown; callback data is not retained as raw pointers by Rust. The recorded event-ID test only queries a scalar API value."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 62,
+          "end_line": 67,
+          "function": "callback",
+          "line_sha256": "3b3a4f852a1d71d7f4493e3a3335ea8446fcc516716a88f17b0228b0b9ddfeb5",
+          "span_sha256": "8f25cec59018594655dc1a0bdea4dff32ef3c3e37fd39f48c663a91b0bb74578",
+          "rationale": "callback: FSEvents/libdispatch bridge: boxed callback context is registered with the stream release callback, event arrays and C strings are borrowed only during the native callback, CF arrays/strings and stream/queue handles have explicit release paths. The stream owns context lifetime through queued callback teardown; callback data is not retained as raw pointers by Rust. The recorded event-ID test only queries a scalar API value."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 88,
+          "end_line": 88,
+          "function": "latest_event_id",
+          "line_sha256": "048dbb0d2a7aef882fdb55d6b2e9cfff3f74d7c4bc1127e173399a1500916e96",
+          "span_sha256": "048dbb0d2a7aef882fdb55d6b2e9cfff3f74d7c4bc1127e173399a1500916e96",
+          "rationale": "latest_event_id: FSEvents/libdispatch bridge: boxed callback context is registered with the stream release callback, event arrays and C strings are borrowed only during the native callback, CF arrays/strings and stream/queue handles have explicit release paths. The stream owns context lifetime through queued callback teardown; callback data is not retained as raw pointers by Rust. The recorded event-ID test only queries a scalar API value."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 102,
+          "end_line": 146,
+          "function": "start",
+          "line_sha256": "60e7632e2db51a1b5f2b2584ea6685b8acff33c085b817b740be452b7aadd9d4",
+          "span_sha256": "22329b98e3103202265e3d47f771eed271581094a9b999507c319949ee03d862",
+          "rationale": "start: FSEvents/libdispatch bridge: boxed callback context is registered with the stream release callback, event arrays and C strings are borrowed only during the native callback, CF arrays/strings and stream/queue handles have explicit release paths. The stream owns context lifetime through queued callback teardown; callback data is not retained as raw pointers by Rust. The recorded event-ID test only queries a scalar API value."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 152,
+          "end_line": 156,
+          "function": "drop",
+          "line_sha256": "60e7632e2db51a1b5f2b2584ea6685b8acff33c085b817b740be452b7aadd9d4",
+          "span_sha256": "e32a024773811668c04eca98fd5d4e78c35f317b6e36d250ba1be6c6dfd79659",
+          "rationale": "drop: FSEvents/libdispatch bridge: boxed callback context is registered with the stream release callback, event arrays and C strings are borrowed only during the native callback, CF arrays/strings and stream/queue handles have explicit release paths. The stream owns context lifetime through queued callback teardown; callback data is not retained as raw pointers by Rust. The recorded event-ID test only queries a scalar API value."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 203,
+          "end_line": 203,
+          "function": "new",
+          "line_sha256": "ed1cbd2dc458277818831f765102e71bd86e29820755a3f2d711944ffb208e98",
+          "span_sha256": "ed1cbd2dc458277818831f765102e71bd86e29820755a3f2d711944ffb208e98",
+          "rationale": "new: FSEvents/libdispatch bridge: boxed callback context is registered with the stream release callback, event arrays and C strings are borrowed only during the native callback, CF arrays/strings and stream/queue handles have explicit release paths. The stream owns context lifetime through queued callback teardown; callback data is not retained as raw pointers by Rust. The recorded event-ID test only queries a scalar API value."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 220,
+          "end_line": 220,
+          "function": "drop",
+          "line_sha256": "b345731e5998862c71830cc9bc0511dc871e97dd36950c406814866c59e833c7",
+          "span_sha256": "b345731e5998862c71830cc9bc0511dc871e97dd36950c406814866c59e833c7",
+          "rationale": "drop: FSEvents/libdispatch bridge: boxed callback context is registered with the stream release callback, event arrays and C strings are borrowed only during the native callback, CF arrays/strings and stream/queue handles have explicit release paths. The stream owns context lifetime through queued callback teardown; callback data is not retained as raw pointers by Rust. The recorded event-ID test only queries a scalar API value."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 251,
+          "end_line": 251,
+          "function": "sync",
+          "line_sha256": "455e13b94d21be6509b5d896535b8468910693e2ab6ef9cd61728def963f6e21",
+          "span_sha256": "455e13b94d21be6509b5d896535b8468910693e2ab6ef9cd61728def963f6e21",
+          "rationale": "sync: FSEvents/libdispatch bridge: boxed callback context is registered with the stream release callback, event arrays and C strings are borrowed only during the native callback, CF arrays/strings and stream/queue handles have explicit release paths. The stream owns context lifetime through queued callback teardown; callback data is not retained as raw pointers by Rust. The recorded event-ID test only queries a scalar API value."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 464,
+          "end_line": 464,
+          "function": "every_stream_reports_a_usable_resume_point",
+          "line_sha256": "7c1b8cb51217aabb43fe75b10f633ae991e1f78ed790d5eda47fce7810dcc878",
+          "span_sha256": "7c1b8cb51217aabb43fe75b10f633ae991e1f78ed790d5eda47fce7810dcc878",
+          "rationale": "every_stream_reports_a_usable_resume_point: FSEvents/libdispatch bridge: boxed callback context is registered with the stream release callback, event arrays and C strings are borrowed only during the native callback, CF arrays/strings and stream/queue handles have explicit release paths. The stream owns context lifetime through queued callback teardown; callback data is not retained as raw pointers by Rust. The recorded event-ID test only queries a scalar API value."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/git/utils.rs",
+      "sha256": "556195d1b37b259dee3af194c697b4d2097db9d60faa9fbbeefe7a21eaaa56ba",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.temp-dir.temp-dir",
+          "line": 301,
+          "end_line": 301,
+          "function": "resolve_within_repo_rejects_colon_path",
+          "line_sha256": "d3ed86ed17562fcb8be42cba66b990dcfcfb3f169afb2d742f76591eba7a2550",
+          "span_sha256": "d3ed86ed17562fcb8be42cba66b990dcfcfb3f169afb2d742f76591eba7a2550",
+          "rationale": "resolve_within_repo_rejects_colon_path: cfg(test) invalid-path validation uses the temporary directory only as a base for rejected colon/NUL/parent-traversal strings; this recorded site creates, removes and authenticates no filesystem object. The separate deleted-directory fixture now owns a tempfile::TempDir; this disposition covers only the recorded non-mutating validation calls."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.temp-dir.temp-dir",
+          "line": 308,
+          "end_line": 308,
+          "function": "resolve_within_repo_rejects_nul_path",
+          "line_sha256": "d3ed86ed17562fcb8be42cba66b990dcfcfb3f169afb2d742f76591eba7a2550",
+          "span_sha256": "d3ed86ed17562fcb8be42cba66b990dcfcfb3f169afb2d742f76591eba7a2550",
+          "rationale": "resolve_within_repo_rejects_nul_path: cfg(test) invalid-path validation uses the temporary directory only as a base for rejected colon/NUL/parent-traversal strings; this recorded site creates, removes and authenticates no filesystem object. The separate deleted-directory fixture now owns a tempfile::TempDir; this disposition covers only the recorded non-mutating validation calls."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.temp-dir.temp-dir",
+          "line": 336,
+          "end_line": 336,
+          "function": "resolve_within_repo_rejects_deleted_escape",
+          "line_sha256": "d3ed86ed17562fcb8be42cba66b990dcfcfb3f169afb2d742f76591eba7a2550",
+          "span_sha256": "d3ed86ed17562fcb8be42cba66b990dcfcfb3f169afb2d742f76591eba7a2550",
+          "rationale": "resolve_within_repo_rejects_deleted_escape: cfg(test) invalid-path validation uses the temporary directory only as a base for rejected colon/NUL/parent-traversal strings; this recorded site creates, removes and authenticates no filesystem object. The separate deleted-directory fixture now owns a tempfile::TempDir; this disposition covers only the recorded non-mutating validation calls."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/lsp/session.rs",
+      "sha256": "efaf8c4ca9af66f564a2723d47fc384bc10f0ec846055743712071d38c5186b8",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 90,
+          "end_line": 90,
+          "function": "signal_kill",
+          "line_sha256": "e747b962ac1add62f06a7c8ddc60bce19f93a111c6778396bf30135a30176847",
+          "span_sha256": "e747b962ac1add62f06a7c8ddc60bce19f93a111c6778396bf30135a30176847",
+          "rationale": "signal_kill: Root integration review approved this narrowed inline process-group signal. The existing owned SharedChild supplies the group ID established by CommandExt::process_group(0); libc::kill takes integer IDs and no raw buffer or untrusted pointer. ESRCH is an accepted child-exit race; other signal errors propagate before the child kill/wait path. Windows retains the owned Job Object cleanup. This disposition covers only the recorded inline unsafe expression."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 374,
+          "end_line": 380,
+          "function": "kill_takes_down_process_group",
+          "line_sha256": "60e7632e2db51a1b5f2b2584ea6685b8acff33c085b817b740be452b7aadd9d4",
+          "span_sha256": "9d1ee721ea34ae8703b23fb471e5b7edf85ec9f488ccf88e0f2681523f174348",
+          "rationale": "kill_takes_down_process_group: Recorded process-group cleanup/test calls operate on owned child/group IDs; the kernel APIs take integer IDs and the test probes its own spawned grandchild. Test pre_exec is confined to the process-cleanup fixture. Production process-group setup now uses safe CommandExt::process_group(0); this disposition covers only the recorded remaining cleanup/test FFI."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 398,
+          "end_line": 398,
+          "function": "kill_takes_down_process_group",
+          "line_sha256": "67c0e032e29b7dbeaf8cdcf87331fc690ef4cdd145bdd2ab305c01d14f2a09cc",
+          "span_sha256": "67c0e032e29b7dbeaf8cdcf87331fc690ef4cdd145bdd2ab305c01d14f2a09cc",
+          "rationale": "kill_takes_down_process_group: Recorded process-group cleanup/test calls operate on owned child/group IDs; the kernel APIs take integer IDs and the test probes its own spawned grandchild. Test pre_exec is confined to the process-cleanup fixture. Production process-group setup now uses safe CommandExt::process_group(0); this disposition covers only the recorded remaining cleanup/test FFI."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/proc/capture.rs",
+      "sha256": "ccca1f63acac3891f6ba50893b724ef1d3d697da3c4c5f82f945e97d559e0dcc",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 149,
+          "end_line": 151,
+          "function": "drop",
+          "line_sha256": "60e7632e2db51a1b5f2b2584ea6685b8acff33c085b817b740be452b7aadd9d4",
+          "span_sha256": "eca68f8560b789490ace29e76472efa8fcce944f600afd92b7cf5cd04bcc12df",
+          "rationale": "drop: OwnedGroup Drop sends SIGKILL to the spawned command group established by the command setup; the FFI accepts an integer group ID, with no pointer dereference or user-provided native memory. Best-effort process cleanup is not an unsafe-memory operation."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/proc/rss.rs",
+      "sha256": "73bcf2a9656c36bd61de9e6c68fdcf851a3730431aad619e748037587742861e",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 5,
+          "end_line": 13,
+          "function": "rss_bytes",
+          "line_sha256": "221b5f7e9ad9e2a8b56ec02dcdba348946b710d6e81d80b7bb8b72aac19f0946",
+          "span_sha256": "3390b1937294a56f37e2f663cb0935f6facaf422a1121b43fd12dd8d3401c12b",
+          "rationale": "rss_bytes: Native read-only RSS queries: macOS assumes initialization only after proc_pidinfo returns the exact structure size; Linux checks sysconf is positive; Windows checks OpenProcess, initializes the size-tagged counters, checks K32GetProcessMemoryInfo and closes its owned handle. Output storage remains live and bounded."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 17,
+          "end_line": 17,
+          "function": "rss_bytes",
+          "line_sha256": "cafcb3779e886db2f806046b1c4a1d2fb15850d820dab3af2501b2868cc58300",
+          "span_sha256": "cafcb3779e886db2f806046b1c4a1d2fb15850d820dab3af2501b2868cc58300",
+          "rationale": "rss_bytes: Native read-only RSS queries: macOS assumes initialization only after proc_pidinfo returns the exact structure size; Linux checks sysconf is positive; Windows checks OpenProcess, initializes the size-tagged counters, checks K32GetProcessMemoryInfo and closes its owned handle. Output storage remains live and bounded."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 24,
+          "end_line": 24,
+          "function": "rss_bytes",
+          "line_sha256": "aec43b60e80b2446bade37634012b65b9880ef88f79f7fe5fef372cd44974555",
+          "span_sha256": "aec43b60e80b2446bade37634012b65b9880ef88f79f7fe5fef372cd44974555",
+          "rationale": "rss_bytes: Native read-only RSS queries: macOS assumes initialization only after proc_pidinfo returns the exact structure size; Linux checks sysconf is positive; Windows checks OpenProcess, initializes the size-tagged counters, checks K32GetProcessMemoryInfo and closes its owned handle. Output storage remains live and bounded."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 40,
+          "end_line": 53,
+          "function": "rss_bytes",
+          "line_sha256": "a67b5fc39d60b8f23faa420d359b1e392126285018c6c61463c3224d5e01024e",
+          "span_sha256": "a4f8b74a3eeb2dc459c0837bb6e7b6f3336834bcf78d9d588f023d2d8989ee1f",
+          "rationale": "rss_bytes: Native read-only RSS queries: macOS assumes initialization only after proc_pidinfo returns the exact structure size; Linux checks sysconf is positive; Windows checks OpenProcess, initializes the size-tagged counters, checks K32GetProcessMemoryInfo and closes its owned handle. Output storage remains live and bounded."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/pty/foreground.rs",
+      "sha256": "ea7ef4e60aaf533838fee751c5f1cb56e5c513681612a6eef0068f384cf3c881",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 13,
+          "end_line": 19,
+          "function": "shell_has_children",
+          "line_sha256": "7b9f12de8c3ef14b0f39f03f7284ef77dc7209aaa7e93d961d0dc71dca313726",
+          "span_sha256": "43ffc3156c85b71141f1e7050f4247eb38369bb7d291fe7fd825ac4a28fddfd5",
+          "rationale": "shell_has_children: Read-only kernel process query: macOS supplies one pid_t slot and its exact byte capacity because only child existence is needed; Windows validates the snapshot handle and uses initialized PROCESSENTRY32 storage, then closes the snapshot. No arbitrary pointer or executable is accepted."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 89,
+          "end_line": 110,
+          "function": "shell_has_children",
+          "line_sha256": "a67b5fc39d60b8f23faa420d359b1e392126285018c6c61463c3224d5e01024e",
+          "span_sha256": "30468852fb93ce9850ae6c2c4dae7dc401ee51d0e1d73460c89faa390ce34aaf",
+          "rationale": "shell_has_children: Read-only kernel process query: macOS supplies one pid_t slot and its exact byte capacity because only child existence is needed; Windows validates the snapshot handle and uses initialized PROCESSENTRY32 storage, then closes the snapshot. No arbitrary pointer or executable is accepted."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/pty/mod.rs",
+      "sha256": "617bbaa7ec04be3c01c6d985802d8082c135288d2134cd336c10c1ec00bf36b9",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 665,
+          "end_line": 668,
+          "function": "destroying_a_webview_closes_exactly_its_terminals",
+          "line_sha256": "fe58bb62f2b85a1281c05de84bb52a9108571e595d85736cd03ad5895180317c",
+          "span_sha256": "00669a3f3c86c38a60f30a2768553517f19aa302a70baaf0c11c8119af8372ed",
+          "rationale": "destroying_a_webview_closes_exactly_its_terminals: cfg(test) cleanup assertion polls waitpid/kill for the fixture process it created; status storage is an initialized local integer. It neither launches a new command nor accepts user-controlled native memory."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/pty/session.rs",
+      "sha256": "29a49d48845b1bc3ad01547b857b42fdf37de35c46a4e38e323a2038318bfe55",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 887,
+          "end_line": 887,
+          "function": "dropping_the_session_kills_the_child",
+          "line_sha256": "10d8b5017f129ddbe4c88d9bbc438cd4d92bc5831cdd9dd0f4ee80e70f5f462a",
+          "span_sha256": "10d8b5017f129ddbe4c88d9bbc438cd4d92bc5831cdd9dd0f4ee80e70f5f462a",
+          "rationale": "dropping_the_session_kills_the_child: cfg(test) session-drop assertion polls/reaps its own fixture child with initialized local wait status and handles the waiter-thread reap race. The integer PID probes are not a production security decision."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 889,
+          "end_line": 889,
+          "function": "dropping_the_session_kills_the_child",
+          "line_sha256": "cf94bef11d07c4d5c76cf765c471adec878d1e402bd095e3fb711fe75facf70e",
+          "span_sha256": "cf94bef11d07c4d5c76cf765c471adec878d1e402bd095e3fb711fe75facf70e",
+          "rationale": "dropping_the_session_kills_the_child: cfg(test) session-drop assertion polls/reaps its own fixture child with initialized local wait status and handles the waiter-thread reap race. The integer PID probes are not a production security decision."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/pty/shell_init.rs",
+      "sha256": "330a23a923e75b35e090e02ef3672f0af0767052dc41b5cc25bd4e3498de7657",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.current-exe.current-exe",
+          "line": 506,
+          "end_line": 506,
+          "function": "resolve_uses_an_existing_override",
+          "line_sha256": "060afb5d333faf52015c24bc8746c9b8ca4fc402adbacf74e0b395f463a9e7f3",
+          "span_sha256": "060afb5d333faf52015c24bc8746c9b8ca4fc402adbacf74e0b395f463a9e7f3",
+          "rationale": "resolve_uses_an_existing_override: cfg(test) fixture obtains its own executable as an existing path solely to exercise override acceptance/rejection; it is never executed, privileged, authenticated or used as a trusted resource root."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.current-exe.current-exe",
+          "line": 1257,
+          "end_line": 1257,
+          "function": "rejects_non_enumerated_override",
+          "line_sha256": "f2703cc6c037c506d628239e681d17a067f25fc8284178cec0b41d6978e44a2a",
+          "span_sha256": "f2703cc6c037c506d628239e681d17a067f25fc8284178cec0b41d6978e44a2a",
+          "rationale": "rejects_non_enumerated_override: cfg(test) fixture obtains its own executable as an existing path solely to exercise override acceptance/rejection; it is never executed, privileged, authenticated or used as a trusted resource root."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/pty/unix_reader.rs",
+      "sha256": "3862ee2b6eb8b369361caaeea85fee22eebc387767f3399a29f3498a065fe36f",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 53,
+          "end_line": 53,
+          "function": "new",
+          "line_sha256": "429cc91499629f444600da4754c5b7a3eaac171792f253f389e5def7efd60d27",
+          "span_sha256": "429cc91499629f444600da4754c5b7a3eaac171792f253f389e5def7efd60d27",
+          "rationale": "new: PTY reader FFI: BorrowedFd is used only while the master borrow is live and is immediately duplicated to an OwnedFd; poll receives a live fixed descriptor array with its exact count. Cancellation/reader ownership prevents borrowed descriptor storage from escaping."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 107,
+          "end_line": 113,
+          "function": "read",
+          "line_sha256": "0a82b7d1948fd9bd97c2d1fa2598675093fb9c88357852f3f8f8cb94e527e7d9",
+          "span_sha256": "c0a4dc79e01ada2848fa77515c0c2f0cede11dbc933706934df91f92a39f78e3",
+          "rationale": "read: PTY reader FFI: BorrowedFd is used only while the master borrow is live and is immediately duplicated to an OwnedFd; poll receives a live fixed descriptor array with its exact count. Cancellation/reader ownership prevents borrowed descriptor storage from escaping."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/shell/background.rs",
+      "sha256": "778ddb0e9b178abb0e8bb49191ffd832ed19d0c27080bcdcb344bb0f1de76b31",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 90,
+          "end_line": 92,
+          "function": "kill",
+          "line_sha256": "60e7632e2db51a1b5f2b2584ea6685b8acff33c085b817b740be452b7aadd9d4",
+          "span_sha256": "c2ca18cbd6a210f4ea614058399a554b6c93d0f0547498da873926c608572350",
+          "rationale": "kill: Background cleanup signals the owned spawned process group created with CommandExt::process_group(0), then kills/waits the child as required. The FFI argument is an owned child/group integer ID, with no raw buffer or untrusted pointer."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 165,
+          "end_line": 167,
+          "function": "spawn",
+          "line_sha256": "60e7632e2db51a1b5f2b2584ea6685b8acff33c085b817b740be452b7aadd9d4",
+          "span_sha256": "cf3603e6e2564ac874e8450e73bb3a086c67d6aab192d3e3ad6d9e9595cafb44",
+          "rationale": "spawn: Background cleanup signals the owned spawned process group created with CommandExt::process_group(0), then kills/waits the child as required. The FFI argument is an owned child/group integer ID, with no raw buffer or untrusted pointer."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/vibrancy.rs",
+      "sha256": "a3f964d7bb60b0f28bc25133484720160089aeeca87c3004fcf6dc997d4cd789",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 84,
+          "end_line": 84,
+          "function": "os_build",
+          "line_sha256": "7f8430f3413eb16cd027c684bc079a9cce293cc0a1da3c118b1c54496a3b6ec5",
+          "span_sha256": "7f8430f3413eb16cd027c684bc079a9cce293cc0a1da3c118b1c54496a3b6ec5",
+          "rationale": "os_build: Windows version query initializes a zero-valid OSVERSIONINFOW and its size before RtlGetVersion. macOS native window/WebView access stays in the main-thread with_webview closure, with Objective-C exception translation. Remaining object-message sites are cfg(test) exception/receiver fixtures with live allocated receivers."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 86,
+          "end_line": 86,
+          "function": "os_build",
+          "line_sha256": "89740ce9bcb86a1e70651b32402cfe425a4e48efb1fbec80ce23c1f3d140ba0d",
+          "span_sha256": "89740ce9bcb86a1e70651b32402cfe425a4e48efb1fbec80ce23c1f3d140ba0d",
+          "rationale": "os_build: Windows version query initializes a zero-valid OSVERSIONINFOW and its size before RtlGetVersion. macOS native window/WebView access stays in the main-thread with_webview closure, with Objective-C exception translation. Remaining object-message sites are cfg(test) exception/receiver fixtures with live allocated receivers."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 167,
+          "end_line": 189,
+          "function": "set_window_see_through",
+          "line_sha256": "1ab4bc73dcab1a901cde464a50d4933758d7f64a929de7ade749105a337d1e6a",
+          "span_sha256": "bbd0601c23910c1a603751aa155b021cc8e274ff9756fbeb05e53eae52ca033e",
+          "rationale": "set_window_see_through: Windows version query initializes a zero-valid OSVERSIONINFOW and its size before RtlGetVersion. macOS native window/WebView access stays in the main-thread with_webview closure, with Objective-C exception translation. Remaining object-message sites are cfg(test) exception/receiver fixtures with live allocated receivers."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 291,
+          "end_line": 291,
+          "function": "instance",
+          "line_sha256": "f626ecd91328a0f60e4bd87535cac803895f36e8f78c3ba62e763e5eff0c3a8f",
+          "span_sha256": "f626ecd91328a0f60e4bd87535cac803895f36e8f78c3ba62e763e5eff0c3a8f",
+          "rationale": "instance: Windows version query initializes a zero-valid OSVERSIONINFOW and its size before RtlGetVersion. macOS native window/WebView access stays in the main-thread with_webview closure, with Objective-C exception translation. Remaining object-message sites are cfg(test) exception/receiver fixtures with live allocated receivers."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 299,
+          "end_line": 299,
+          "function": "a_key_value_coding_exception_is_reported_instead_of_aborting",
+          "line_sha256": "d59aca8a710fbc14fccb526d94b48fafe8a10e01cacc9b5cf332ce67b825d397",
+          "span_sha256": "d59aca8a710fbc14fccb526d94b48fafe8a10e01cacc9b5cf332ce67b825d397",
+          "rationale": "a_key_value_coding_exception_is_reported_instead_of_aborting: Windows version query initializes a zero-valid OSVERSIONINFOW and its size before RtlGetVersion. macOS native window/WebView access stays in the main-thread with_webview closure, with Objective-C exception translation. Remaining object-message sites are cfg(test) exception/receiver fixtures with live allocated receivers."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 314,
+          "end_line": 314,
+          "function": "a_receiver_that_accepts_the_key_is_updated",
+          "line_sha256": "971a7f8fd73c52dccb6a08a29cf96a9635b7905b8b8684a504537a8b86430010",
+          "span_sha256": "971a7f8fd73c52dccb6a08a29cf96a9635b7905b8b8684a504537a8b86430010",
+          "rationale": "a_receiver_that_accepts_the_key_is_updated: Windows version query initializes a zero-valid OSVERSIONINFOW and its size before RtlGetVersion. macOS native window/WebView access stays in the main-thread with_webview closure, with Objective-C exception translation. Remaining object-message sites are cfg(test) exception/receiver fixtures with live allocated receivers."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 316,
+          "end_line": 316,
+          "function": "a_receiver_that_accepts_the_key_is_updated",
+          "line_sha256": "7fc039eb4403cddfc0a4c39879a4bb962155798e9efd80985fc2b1f86032b90d",
+          "span_sha256": "7fc039eb4403cddfc0a4c39879a4bb962155798e9efd80985fc2b1f86032b90d",
+          "rationale": "a_receiver_that_accepts_the_key_is_updated: Windows version query initializes a zero-valid OSVERSIONINFOW and its size before RtlGetVersion. macOS native window/WebView access stays in the main-thread with_webview closure, with Objective-C exception translation. Remaining object-message sites are cfg(test) exception/receiver fixtures with live allocated receivers."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/window_presentation.rs",
+      "sha256": "1b6e06c97c231583e25a9c8ee67bb2730f986f133962d568316411d182807bc6",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 84,
+          "end_line": 84,
+          "function": "drop",
+          "line_sha256": "06ff8a25b5666268e21e4ae9f541ea41d8a00937fba1ea34fefef24a2fb49098",
+          "span_sha256": "06ff8a25b5666268e21e4ae9f541ea41d8a00937fba1ea34fefef24a2fb49098",
+          "rationale": "drop: macOS observer lifecycle: window pointers are borrowed only while the Tauri window exists on the main queue; notification closures retain AppHandle rather than raw window references and re-query the live window. Observer tokens/centers are retained and unregister on Drop; SDK notification-name statics are immutable. No borrowed native reference is stored across callbacks."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 96,
+          "end_line": 96,
+          "function": "occluded",
+          "line_sha256": "dac657cbce36f1f9a24a3c0705c5285dc17f1fd20ac7853ab492765d14b09727",
+          "span_sha256": "dac657cbce36f1f9a24a3c0705c5285dc17f1fd20ac7853ab492765d14b09727",
+          "rationale": "occluded: macOS observer lifecycle: window pointers are borrowed only while the Tauri window exists on the main queue; notification closures retain AppHandle rather than raw window references and re-query the live window. Observer tokens/centers are retained and unregister on Drop; SDK notification-name statics are immutable. No borrowed native reference is stored across callbacks."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 138,
+          "end_line": 138,
+          "function": "install",
+          "line_sha256": "dac657cbce36f1f9a24a3c0705c5285dc17f1fd20ac7853ab492765d14b09727",
+          "span_sha256": "dac657cbce36f1f9a24a3c0705c5285dc17f1fd20ac7853ab492765d14b09727",
+          "rationale": "install: macOS observer lifecycle: window pointers are borrowed only while the Tauri window exists on the main queue; notification closures retain AppHandle rather than raw window references and re-query the live window. Observer tokens/centers are retained and unregister on Drop; SDK notification-name statics are immutable. No borrowed native reference is stored across callbacks."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 144,
+          "end_line": 150,
+          "function": "install",
+          "line_sha256": "c682c8e429b5f3c0f79e2ab0e6dd4dca56e4042546cafa4c6ab326bd5742c908",
+          "span_sha256": "dbe71cec4afe6a71828636ddc62d3e1bbb895d2374a3464bde235b4d295e1537",
+          "rationale": "install: macOS observer lifecycle: window pointers are borrowed only while the Tauri window exists on the main queue; notification closures retain AppHandle rather than raw window references and re-query the live window. Observer tokens/centers are retained and unregister on Drop; SDK notification-name statics are immutable. No borrowed native reference is stored across callbacks."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 154,
+          "end_line": 161,
+          "function": "install",
+          "line_sha256": "41ca2d4bb2e3b694289e3a10fedccca49f12ec5b4259b010b7f19c9cbe7bc206",
+          "span_sha256": "93ea6a044a6bd2b3307bdfbab0e5764e1a58650932bcece7778cbc50f75eef22",
+          "rationale": "install: macOS observer lifecycle: window pointers are borrowed only while the Tauri window exists on the main queue; notification closures retain AppHandle rather than raw window references and re-query the live window. Observer tokens/centers are retained and unregister on Drop; SDK notification-name statics are immutable. No borrowed native reference is stored across callbacks."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 170,
+          "end_line": 175,
+          "function": "install",
+          "line_sha256": "c00ec43d6f82830acdd4f0a1921721cc16a8559e99f71696fa42fbf148455a2f",
+          "span_sha256": "bf8d2fdcf8377a059364002b7ca3e125fe59609cd86da8839a25910a2a804dfa",
+          "rationale": "install: macOS observer lifecycle: window pointers are borrowed only while the Tauri window exists on the main queue; notification closures retain AppHandle rather than raw window references and re-query the live window. Observer tokens/centers are retained and unregister on Drop; SDK notification-name statics are immutable. No borrowed native reference is stored across callbacks."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 180,
+          "end_line": 187,
+          "function": "install",
+          "line_sha256": "41ca2d4bb2e3b694289e3a10fedccca49f12ec5b4259b010b7f19c9cbe7bc206",
+          "span_sha256": "66d6b38007a9a1c59f11929ea41a4a3d47ff915d3e997009c1a710717942adb1",
+          "rationale": "install: macOS observer lifecycle: window pointers are borrowed only while the Tauri window exists on the main queue; notification closures retain AppHandle rather than raw window references and re-query the live window. Observer tokens/centers are retained and unregister on Drop; SDK notification-name statics are immutable. No borrowed native reference is stored across callbacks."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/workspace.rs",
+      "sha256": "32fa16056b4828766b0f38f4e0402f26d666bf1ee430941f4a4fd3f85ae46c8f",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.current-exe.current-exe",
+          "line": 338,
+          "end_line": 338,
+          "function": "is_executable_dir",
+          "line_sha256": "41104ee31ce9d353e8924c71daccbc9d7b94c9519259d747260f52042d9d5739",
+          "span_sha256": "41104ee31ce9d353e8924c71daccbc9d7b94c9519259d747260f52042d9d5739",
+          "rationale": "is_executable_dir: is_executable_dir canonicalizes candidate and current executable parent only to reject the application installation directory as a workspace. The executable path is not run, trusted for authentication, or used to load a resource."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.temp-dir.temp-dir",
+          "line": 883,
+          "end_line": 883,
+          "function": "tempdir",
+          "line_sha256": "d2ccb9bc9636c3326e88f8f3bc05c99e32302f79074c65f29ec33824b5e63377",
+          "span_sha256": "d2ccb9bc9636c3326e88f8f3bc05c99e32302f79074c65f29ec33824b5e63377",
+          "rationale": "tempdir: cfg(test) workspace-authorization fixture uses a temporary path as test input or creates a timestamp/PID-labelled fixture directory; no production credential, executable or privileged resource is placed there. These are test-only path-validation cases, not a production security operation. Prefer TempDir for future fixture hygiene."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.temp-dir.temp-dir",
+          "line": 1147,
+          "end_line": 1147,
+          "function": "authorize_spawn_cwd_rejects_missing_path",
+          "line_sha256": "38417310293d7879bb83c5ca910ceef8ae88101146952c5f68b48a460cd07616",
+          "span_sha256": "38417310293d7879bb83c5ca910ceef8ae88101146952c5f68b48a460cd07616",
+          "rationale": "authorize_spawn_cwd_rejects_missing_path: cfg(test) workspace-authorization fixture uses a temporary path as test input or creates a timestamp/PID-labelled fixture directory; no production credential, executable or privileged resource is placed there. These are test-only path-validation cases, not a production security operation. Prefer TempDir for future fixture hygiene."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.temp-dir.temp-dir",
+          "line": 1178,
+          "end_line": 1178,
+          "function": "authorize_user_spawn_cwd_rejects_missing_path",
+          "line_sha256": "38417310293d7879bb83c5ca910ceef8ae88101146952c5f68b48a460cd07616",
+          "span_sha256": "38417310293d7879bb83c5ca910ceef8ae88101146952c5f68b48a460cd07616",
+          "rationale": "authorize_user_spawn_cwd_rejects_missing_path: cfg(test) workspace-authorization fixture uses a temporary path as test input or creates a timestamp/PID-labelled fixture directory; no production credential, executable or privileged resource is placed there. These are test-only path-validation cases, not a production security operation. Prefer TempDir for future fixture hygiene."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.temp-dir.temp-dir",
+          "line": 1201,
+          "end_line": 1201,
+          "function": "user_spawn_cwd_or_home_falls_back_when_inaccessible",
+          "line_sha256": "38417310293d7879bb83c5ca910ceef8ae88101146952c5f68b48a460cd07616",
+          "span_sha256": "38417310293d7879bb83c5ca910ceef8ae88101146952c5f68b48a460cd07616",
+          "rationale": "user_spawn_cwd_or_home_falls_back_when_inaccessible: cfg(test) workspace-authorization fixture uses a temporary path as test input or creates a timestamp/PID-labelled fixture directory; no production credential, executable or privileged resource is placed there. These are test-only path-validation cases, not a production security operation. Prefer TempDir for future fixture hygiene."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 1344,
+          "end_line": 1344,
+          "function": "workspace_locations",
+          "line_sha256": "0881e46a43ef1ffd44838fe7c222f2c837dbaab7bbb4ea9c64e25c5a445d3337",
+          "span_sha256": "0881e46a43ef1ffd44838fe7c222f2c837dbaab7bbb4ea9c64e25c5a445d3337",
+          "rationale": "workspace_locations: GetLogicalDrives returns only a checked scalar bitmask for drive enumeration; no pointer, allocation, command lookup or untrusted native buffer is involved."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/agent.rs",
+      "sha256": "bb956a99ea466556af90978461879288f91374d6c0e49f626ef1ac5df8bdae5c",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 655,
+          "end_line": 657,
+          "function": "emit_conout_marker",
+          "line_sha256": "a67b5fc39d60b8f23faa420d359b1e392126285018c6c61463c3224d5e01024e",
+          "span_sha256": "f23b792d62e82fb77dfbed4555ed73feb06a51466f2ec00c3441fdca09d13ebb",
+          "rationale": "emit_conout_marker: Windows-only legacy terminal notification helper attaches to ATTACH_PARENT_PROCESS using a constant integer process selector. AttachConsole receives no raw pointer or user-controlled memory. Failure is nonfatal (already-attached/no-parent consoles); the following owned CONOUT$ file open is separately checked before writing the compatibility marker. The environment gate preserves terminal-only invocation. This disposition covers only the recorded three-line AttachConsole block, not arbitrary process or console operations."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/crates/terax-cli/src/lib.rs",
+      "sha256": "f1d27d67cd69308f4752fea9d21dae928bfd4a5f55d67d2855f29097ef7aad78",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.args-os.args-os",
+          "line": 69,
+          "end_line": 69,
+          "function": "main_entry",
+          "line_sha256": "5ad787a9f768dd45a833645f9e29231b2696b9bd08c5c011d4036d9f08bfae41",
+          "span_sha256": "5ad787a9f768dd45a833645f9e29231b2696b9bd08c5c011d4036d9f08bfae41",
+          "rationale": "main_entry: args_os reads explicit caller command arguments without losing non-Unicode paths; parse_args validates commands and bounds. Arguments never confer authorization: endpoint token validation and the authenticated loopback control transport remain separate. This disposition covers only the recorded argument collection expression."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.args-os.args-os",
+          "line": 76,
+          "end_line": 76,
+          "function": "main_entry",
+          "line_sha256": "52b051430c71e2600f95199e826fcc837c42dcfd42cbcd7a07090d4bf6aee8b3",
+          "span_sha256": "52b051430c71e2600f95199e826fcc837c42dcfd42cbcd7a07090d4bf6aee8b3",
+          "rationale": "main_entry: this second args_os read selects JSON versus human-readable error formatting only; it grants no capability and supplies no authentication credential. Command validation and control token/transport authorization remain separate. This disposition covers only the recorded display-argument collection expression."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 380,
+          "end_line": 380,
+          "function": "process_is_alive",
+          "line_sha256": "4aa2aefba6cd633a055ca27c9b6987ea5832a3c55dc08485c3b5e3ddcf8370c0",
+          "span_sha256": "4aa2aefba6cd633a055ca27c9b6987ea5832a3c55dc08485c3b5e3ddcf8370c0",
+          "rationale": "process_is_alive: Unix kill(pid, 0) performs a liveness/permission probe without delivering a signal. The u32 PID is converted to pid_t and required positive before the call; the result is used only to reject stale descriptors, with control authentication independently required."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 392,
+          "end_line": 400,
+          "function": "process_is_alive",
+          "line_sha256": "a67b5fc39d60b8f23faa420d359b1e392126285018c6c61463c3224d5e01024e",
+          "span_sha256": "988db16a480a1513ee6424e331d06066bc7e71dab385639e72b59354ebca04d7",
+          "rationale": "process_is_alive: OpenProcess requests only PROCESS_QUERY_LIMITED_INFORMATION for a nonzero PID, with inheritance disabled; the returned nonnull owned handle is closed exactly once. Failure only treats ACCESS_DENIED as possibly alive; this probe never replaces token authentication."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/fs/ai.rs",
+      "sha256": "82c5b3ef08c43a29af4a5d0d1ef410ee84805fa0fb0f01ad1266259b3a1e1fdd",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 41,
+          "end_line": 41,
+          "function": "opened_path",
+          "line_sha256": "86bf288c75bbaeb2d2df31ac6d1ae6505d8856ec50312f93b716ffc321b3d81f",
+          "span_sha256": "86bf288c75bbaeb2d2df31ac6d1ae6505d8856ec50312f93b716ffc321b3d81f",
+          "rationale": "opened_path: macOS F_GETPATH borrows the live File descriptor and writes into a PATH_MAX-sized stack buffer; return failure and absence of an in-bounds NUL are rejected before building the lossless path. Native read policy and workspace authorization validate that opened path before any content read."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 61,
+          "end_line": 68,
+          "function": "opened_path",
+          "line_sha256": "b3c97b89b7977c025bb5c54b99ba36edeb3049ade0644e08b550c580069cbd56",
+          "span_sha256": "5ec9ed9d667a403246dbc2e4e89fe462f85b2a2fffa4a59facf78ebc1d6d3710",
+          "rationale": "opened_path: GetFinalPathNameByHandleW borrows the live File handle and a correctly sized mutable UTF-16 buffer. Zero/truncated results are rejected; OsString::from_wide preserves unpaired code units so subsequent readable rejects non-UTF8 paths rather than aliasing names."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 349,
+          "end_line": 349,
+          "function": "special_files_are_rejected_without_a_data_open",
+          "line_sha256": "a69d6da6702d06342f04c82c96e4ce0983b00e752b4b8e9b56c1adae26b3fa58",
+          "span_sha256": "a69d6da6702d06342f04c82c96e4ce0983b00e752b4b8e9b56c1adae26b3fa58",
+          "rationale": "special_files_are_rejected_without_a_data_open: Linux-only owned-tempdir regression creates a nonblocking CLOEXEC inotify descriptor and checks fd >= 0 before transferring ownership. The fixture verifies that blocked FIFO reads cause no data-open event; no user path or production descriptor is used."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 351,
+          "end_line": 351,
+          "function": "special_files_are_rejected_without_a_data_open",
+          "line_sha256": "5d81761af5050947b2bcc061af956d7909448b6f3b0bfb41bf8240362e7eb067",
+          "span_sha256": "5d81761af5050947b2bcc061af956d7909448b6f3b0bfb41bf8240362e7eb067",
+          "rationale": "special_files_are_rejected_without_a_data_open: the preceding checked nonnegative inotify fd is transferred exactly once to File::from_raw_fd, whose RAII close owns it for the remainder of this Linux-only temporary fixture. The original raw fd is not closed or wrapped again."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/fs/assets.rs",
+      "sha256": "7805d1eaa1942480ddbcfc2c4a9159a172ef12ee148fcad448aa0efe29a6fd62",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 292,
+          "end_line": 292,
+          "function": "opened_path",
+          "line_sha256": "86bf288c75bbaeb2d2df31ac6d1ae6505d8856ec50312f93b716ffc321b3d81f",
+          "span_sha256": "86bf288c75bbaeb2d2df31ac6d1ae6505d8856ec50312f93b716ffc321b3d81f",
+          "rationale": "opened_path: macOS F_GETPATH receives the borrowed live File descriptor and a PATH_MAX-sized writable buffer. Failure or missing in-bounds NUL is rejected; the resulting lossless opened-object path is checked against the owner-bound grant before serving selected content."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/fs/local_file.rs",
+      "sha256": "3a65849d75555a4fbba646116626809879a66e4144080b46781a9cc43388884b",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 46,
+          "end_line": 46,
+          "function": "open",
+          "line_sha256": "bd5d19b060b1f533052b96db41e29022781ee4ccfe0f27598c5b322aba36c89e",
+          "span_sha256": "bd5d19b060b1f533052b96db41e29022781ee4ccfe0f27598c5b322aba36c89e",
+          "rationale": "open: GetDriveTypeW receives a live NUL-terminated UTF-16 drive-root buffer after an absolute ASCII drive path and NUL rejection. It is a read-only local-versus-network precheck; NtCreateFile independently rejects reparse traversal and handle metadata rejects leaf reparse points."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 67,
+          "end_line": 81,
+          "function": "open",
+          "line_sha256": "f8f1d4cfbc34bc4907735f1b88447ec09568c740ef9bdac9da8db4a4360a0e37",
+          "span_sha256": "07b6981c4c22b6c546a109082d71439e6be984997cd8f220c71cd90b373fcaa7",
+          "rationale": "open: NtCreateFile receives initialized size-tagged OBJECT_ATTRIBUTES/IO_STATUS_BLOCK and a live bounded UTF-16 UNICODE_STRING buffer. It requests FILE_READ_ATTRIBUTES only, with OBJ_DONT_REPARSE and FILE_OPEN_REPARSE_POINT; failing NTSTATUS returns before ownership transfer, and success becomes a unique RAII File whose metadata rejects leaf reparse points."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 88,
+          "end_line": 88,
+          "function": "open",
+          "line_sha256": "94a91ba36f2f34508fb95f8b0b41ee20a365b6cc3b21c4b0fb399548f3dcb90b",
+          "span_sha256": "94a91ba36f2f34508fb95f8b0b41ee20a365b6cc3b21c4b0fb399548f3dcb90b",
+          "rationale": "open: a successful checked NtCreateFile returns this uniquely owned handle; File::from_raw_handle transfers ownership once and all later metadata errors close it through RAII. There is no duplicate wrapper or independent CloseHandle path."
+        },
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 103,
+          "end_line": 110,
+          "function": "canonicalize",
+          "line_sha256": "688bd25600240ba327b13b3642c212ce13ee999e2422285d40a105b3dd652f38",
+          "span_sha256": "2e8df4b6b8722512148057103fed1d269880bd789ec94290f31ee9eff0c30c6b",
+          "rationale": "canonicalize: GetFinalPathNameByHandleW borrows the live File handle and the exact writable UTF-16 buffer capacity. Zero/truncated results fail before slicing, and strict UTF-16 decoding rejects unpaired surrogates rather than aliasing security-sensitive opened paths."
+        }
+      ]
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/fs/project_memory.rs",
+      "sha256": "c361a6a3f9fc7cd7ed0cf1a417a21203fa73e498c6b98c41b50ae47a0276f054",
+      "findings": [
+        {
+          "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+          "line": 91,
+          "end_line": 91,
+          "function": "opened_path",
+          "line_sha256": "86bf288c75bbaeb2d2df31ac6d1ae6505d8856ec50312f93b716ffc321b3d81f",
+          "span_sha256": "86bf288c75bbaeb2d2df31ac6d1ae6505d8856ec50312f93b716ffc321b3d81f",
+          "rationale": "opened_path: macOS F_GETPATH borrows a live File descriptor and a PATH_MAX-sized writable stack buffer. Failure and missing in-bounds NUL are rejected; the lossless opened path must pass native secret policy, remain in the authorized root and equal the prechecked project-memory path before bounded bytes are read."
+        }
+      ]
+    }
+  ],
+  "pending_unaccepted": [],
+  "limitations": [
+    "This disposition is not proof that all native code or platforms have been runtime tested.",
+    "The bench ns_window static return annotation overstates the currently scoped native borrow; no escaping use was found in the reviewed callers."
+  ],
+  "resolved_sites": [
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/git/utils.rs",
+      "rule_id": "Semgrep_rust.lang.security.temp-dir.temp-dir",
+      "line": 210,
+      "end_line": 210,
+      "reason": "Test deletes a predictable pre-existing shared-temp path. Replace with an owned tempfile::TempDir fixture before accepting it.",
+      "resolution": "Replaced fixed shared-temp predelete/create/delete with an owned tempfile::TempDir fixture and scoped child-directory removal.",
+      "current_file_sha256": "62904ddc1ce55966514f9e7419f6effbb9269689a9866f9c7b7dda379f922559"
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/lsp/session.rs",
+      "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+      "line": 119,
+      "end_line": 125,
+      "reason": "pre_exec discards setpgid failure; prefer the existing safe CommandExt::process_group(0) pattern so spawn propagates group-setup errors.",
+      "resolution": "Replaced unchecked unsafe pre_exec/setpgid with safe CommandExt::process_group(0), so process-group setup errors propagate through spawn.",
+      "current_file_sha256": "b9feb18ef8dd2a965c13c7134975a3a8a37bcf8579f4dc6223d95d1ad975837a"
+    },
+    {
+      "path": "apps/desktop/src-tauri/workbench-core/src/modules/pty/shell_init.rs",
+      "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
+      "line": 267,
+      "end_line": 278,
+      "reason": "Replace non-reentrant getpwuid/static passwd storage with getpwuid_r and an owned bounded buffer before accepting this unsafe site.",
+      "resolution": "Replaced raw non-reentrant getpwuid with nix 0.31.3 User::from_uid(getuid()); installed pinned crate source confirms getpwuid_r and owned PathBuf shell. Enabled existing nix user feature without a version change.",
+      "current_file_sha256": "752b93b4024d2d91385b28fd80b4663fcab2451ae3929b5aa241e783eba9b663"
+    }
+  ],
+  "refresh_evidence": {
+    "report": ".cache/verification/public-prep-20261112/opengrep-native-fixes-report.json",
+    "raw_report_sha256": "30d5ed4b7974261783f24216aedff22ce7f6e3d5421097f21ad781b755ae1187",
+    "configuration_sha256": "29185951b395134614d1a12b01b7fec14ae51fe88f3673b356387f853f989d0a",
+    "enabled_rules": 143,
+    "changed_files": [
+      "apps/desktop/src-tauri/workbench-core/src/modules/git/utils.rs",
+      "apps/desktop/src-tauri/workbench-core/src/modules/lsp/session.rs",
+      "apps/desktop/src-tauri/workbench-core/src/modules/pty/shell_init.rs"
+    ],
+    "raw_findings": 8,
+    "unreviewed_findings": 0,
+    "scan_errors": 0,
+    "accepted_findings_validated": 107,
+    "note": "Targeted scan only; no repeated full-corpus scan. Raw report SHA is provenance, not a gate binding for future scans."
+  },
+  "integration_review": {
+    "upstream_source_commit": "f7bee29d8690aa0afe37ed8b4c94daeb5b0211ad",
+    "upstream_base_commit": "5502f826a6476556182ddbe1466ec2ba94c0fd47",
+    "verification_directory": ".cache/verification/terax-refresh-20261113-01/python-audit",
+    "changed_files": [
+      "apps/desktop/src-tauri/workbench-core/src/modules/git/utils.rs",
+      "apps/desktop/src-tauri/workbench-core/src/modules/lsp/session.rs",
+      "apps/desktop/src-tauri/workbench-core/src/modules/proc/capture.rs",
+      "apps/desktop/src-tauri/workbench-core/src/modules/pty/mod.rs",
+      "apps/desktop/src-tauri/workbench-core/src/modules/pty/session.rs",
+      "apps/desktop/src-tauri/workbench-core/src/modules/pty/shell_init.rs",
+      "apps/desktop/src-tauri/workbench-core/src/modules/workspace.rs"
+    ],
+    "unchanged_span_reanchors": 17,
+    "root_reviewed_narrowed_spans": 1,
+    "existing_disposition_count": 107,
+    "note": "The original 107 dispositions remain retained, with one root-reviewed narrower LSP span. One exact Windows AttachConsole site and 14 separately reviewed upstream native/input-source sites bring the current table to 122. New predictable temporary paths were fixed instead of adding exceptions. The AI path-policy import was changed to parser-compatible static JSON syntax; the initial structured analyzer report remains failed evidence because of its parse error. Existing scan evidence retains its original source/report identity. A fresh complete staged analyzer result and its strict guard outcome must be recorded separately by the integration owner; this source-contract ledger does not claim a clean scan.",
+    "fresh_reviewed_sites": [
+      {
+        "path": "apps/desktop/src-tauri/workbench-core/src/modules/agent.rs",
+        "function": "emit_conout_marker",
+        "line": 655,
+        "end_line": 657
+      }
+    ],
+    "current_disposition_count": 122
+  }
+}

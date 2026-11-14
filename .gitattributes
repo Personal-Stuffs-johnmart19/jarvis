@@ -1,0 +1,7 @@
+# Keep manifest SHA256 stable across Windows checkout settings.
+/desktop-bin/companions/** -text
+/integrations/*/jarvis.patch text eol=lf
+
+# Patch context lines contain a required single space; preserve the upstream diff.
+/apps/desktop/workbench/packages/ghostty-core/patches/*.patch text eol=lf whitespace=-blank-at-eol
+/tools/dev/patches/*.patch text eol=lf whitespace=-blank-at-eol

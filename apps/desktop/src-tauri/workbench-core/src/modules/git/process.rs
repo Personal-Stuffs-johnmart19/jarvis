@@ -1,0 +1,807 @@
+use std::collections::HashMap;
+use std::ffi::{OsStr, OsString};
+use std::path::Path;
+use std::process::{Command, Stdio};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
+
+use crate::modules::git::errors::{GitError, Result};
+use crate::modules::git::types::{
+    GitOutput, TextSource, DEFAULT_TIMEOUT_SECS, MAX_FILE_BYTES, MAX_OUTPUT_BYTES,
+    MAX_TIMEOUT_SECS, MIN_GIT_VERSION,
+};
+use crate::modules::proc::capture::{self, Limits};
+#[cfg(windows)]
+use crate::modules::workspace::validate_wsl_distro_name;
+use crate::modules::workspace::WorkspaceEnv;
+
+#[derive(Clone)]
+enum Availability {
+    Ok,
+    NotInstalled,
+    TooOld(String),
+}
+
+const AVAILABILITY_TTL: Duration = Duration::from_secs(60);
+
+struct AvailabilityCache {
+    value: Availability,
+    checked_at: Instant,
+}
+
+static GIT_AVAILABILITY: OnceLock<Mutex<HashMap<String, AvailabilityCache>>> = OnceLock::new();
+
+fn availability_cell() -> &'static Mutex<HashMap<String, AvailabilityCache>> {
+    GIT_AVAILABILITY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn prune_expired_availability_entries(cache: &mut HashMap<String, AvailabilityCache>) {
+    cache.retain(|_, entry| entry.checked_at.elapsed() < AVAILABILITY_TTL);
+}
+
+fn workspace_cache_key(workspace: &WorkspaceEnv) -> String {
+    match workspace {
+        WorkspaceEnv::Local => "local".into(),
+        WorkspaceEnv::Wsl { distro } => format!("wsl:{distro}"),
+    }
+}
+
+pub fn ensure_git_available(workspace: &WorkspaceEnv) -> Result<()> {
+    let cache_key = workspace_cache_key(workspace);
+    let cached = {
+        let mut guard = availability_cell()
+            .lock()
+            .expect("git availability poisoned");
+        prune_expired_availability_entries(&mut guard);
+        guard
+            .get(&cache_key)
+            .filter(|entry| entry.checked_at.elapsed() < AVAILABILITY_TTL)
+            .map(|entry| entry.value.clone())
+    };
+    let value = match cached {
+        Some(v) => v,
+        None => {
+            let fresh = check_git_availability(workspace);
+            let mut guard = availability_cell()
+                .lock()
+                .expect("git availability poisoned");
+            prune_expired_availability_entries(&mut guard);
+            guard.insert(
+                cache_key,
+                AvailabilityCache {
+                    value: fresh.clone(),
+                    checked_at: Instant::now(),
+                },
+            );
+            fresh
+        }
+    };
+    match value {
+        Availability::Ok => Ok(()),
+        Availability::NotInstalled => Err(GitError::NotInstalled),
+        Availability::TooOld(v) => Err(GitError::TooOld {
+            found: v,
+            required: MIN_GIT_VERSION,
+        }),
+    }
+}
+
+fn check_git_availability(workspace: &WorkspaceEnv) -> Availability {
+    let output = match run_git(workspace, None, ["--version"], 10) {
+        Ok(o) => o,
+        Err(_) => return Availability::NotInstalled,
+    };
+    if output.timed_out || output.exit_code != Some(0) {
+        return Availability::NotInstalled;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let version = parse_git_version(stdout.trim()).unwrap_or_else(|| "unknown".into());
+    if !version_meets_minimum(&version, MIN_GIT_VERSION) {
+        return Availability::TooOld(version);
+    }
+    Availability::Ok
+}
+
+fn parse_git_version(line: &str) -> Option<String> {
+    line.split_whitespace()
+        .find(|tok| tok.chars().next().is_some_and(|c| c.is_ascii_digit()))
+        .map(|s| s.split('.').take(3).collect::<Vec<_>>().join("."))
+}
+
+fn version_meets_minimum(found: &str, required: &str) -> bool {
+    let parse = |s: &str| -> Vec<u32> {
+        s.split('.')
+            .map(|p| p.parse::<u32>().unwrap_or(0))
+            .collect()
+    };
+    let f = parse(found);
+    let r = parse(required);
+    for (i, &b) in r.iter().enumerate() {
+        let a = f.get(i).copied().unwrap_or(0);
+        if a > b {
+            return true;
+        }
+        if a < b {
+            return false;
+        }
+    }
+    true
+}
+
+pub fn git_show_text(workspace: &WorkspaceEnv, repo_root: &str, spec: &str) -> Result<TextSource> {
+    let output = run_git(
+        workspace,
+        Some(repo_root),
+        [
+            OsStr::new("show"),
+            OsStr::new("--no-textconv"),
+            OsStr::new(spec),
+        ],
+        DEFAULT_TIMEOUT_SECS,
+    )?;
+    if output.timed_out {
+        return Err(GitError::TimedOut("git show"));
+    }
+    if output.exit_code != Some(0) {
+        return Ok(TextSource::Missing);
+    }
+    Ok(decode_text(output.stdout))
+}
+
+pub fn git_stdout_line_opt<I, S>(
+    workspace: &WorkspaceEnv,
+    cwd: &str,
+    args: I,
+) -> Result<Option<String>>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let output = run_git(workspace, Some(cwd), args, DEFAULT_TIMEOUT_SECS)?;
+    if output.timed_out {
+        return Err(GitError::TimedOut("git command"));
+    }
+    if output.exit_code != Some(0) {
+        return Ok(None);
+    }
+    let stdout = std::str::from_utf8(&output.stdout).unwrap_or("");
+    let line = stdout.lines().next().unwrap_or("").trim();
+    if line.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(line.to_string()))
+    }
+}
+
+/// Run git, returning multiple stdout lines (UTF-8). Empty trailing lines stripped.
+pub fn git_stdout_lines<I, S>(workspace: &WorkspaceEnv, cwd: &str, args: I) -> Result<Vec<String>>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let output = run_git(workspace, Some(cwd), args, DEFAULT_TIMEOUT_SECS)?;
+    if output.timed_out {
+        return Err(GitError::TimedOut("git command"));
+    }
+    if output.exit_code != Some(0) {
+        return Ok(Vec::new());
+    }
+    let stdout = std::str::from_utf8(&output.stdout).unwrap_or("");
+    Ok(stdout
+        .lines()
+        .map(|line| line.trim_end_matches('\r').to_string())
+        .collect())
+}
+
+pub fn read_text_file(path: &Path) -> Result<TextSource> {
+    let meta = match std::fs::symlink_metadata(path) {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(TextSource::Missing),
+        Err(e) => return Err(GitError::Io(e)),
+    };
+    if meta.file_type().is_symlink() {
+        return Err(GitError::SymlinkRejected(path.to_path_buf()));
+    }
+    if !meta.is_file() {
+        return Ok(TextSource::Missing);
+    }
+    let size = meta.len();
+    if size > MAX_FILE_BYTES {
+        return Err(GitError::FileTooLarge {
+            path: path.to_path_buf(),
+            size,
+            max: MAX_FILE_BYTES,
+        });
+    }
+    let bytes = std::fs::read(path)?;
+    Ok(decode_text(bytes))
+}
+
+pub fn run_git<I, S>(
+    workspace: &WorkspaceEnv,
+    cwd: Option<&str>,
+    args: I,
+    timeout_secs: u64,
+) -> Result<GitOutput>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    run_git_uncached(workspace, cwd, args, timeout_secs, MAX_OUTPUT_BYTES, false)
+}
+
+/// Like `run_git`, but kills git once it has produced `stdout_cap` bytes. For
+/// listings whose tail is not wanted, so a huge result costs a bounded walk.
+pub fn run_git_capped<I, S>(
+    workspace: &WorkspaceEnv,
+    cwd: Option<&str>,
+    args: I,
+    timeout_secs: u64,
+    stdout_cap: usize,
+) -> Result<GitOutput>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    run_git_uncached(workspace, cwd, args, timeout_secs, stdout_cap, true)
+}
+
+/// Extras for the few invocations that need environment variables (a private
+/// `GIT_INDEX_FILE`) or bytes on stdin (a patch, a path list).
+#[derive(Default)]
+pub struct RunOptions {
+    pub env: Vec<(OsString, OsString)>,
+    pub stdin: Option<Vec<u8>>,
+    /// Defaults to `MAX_OUTPUT_BYTES` when zero.
+    pub stdout_cap: usize,
+}
+
+pub fn run_git_with<I, S>(
+    workspace: &WorkspaceEnv,
+    cwd: Option<&str>,
+    args: I,
+    timeout_secs: u64,
+    options: RunOptions,
+) -> Result<GitOutput>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let cap = if options.stdout_cap == 0 {
+        MAX_OUTPUT_BYTES
+    } else {
+        options.stdout_cap
+    };
+    run_git_full(workspace, cwd, args, timeout_secs, cap, false, options)
+}
+
+fn run_git_uncached<I, S>(
+    workspace: &WorkspaceEnv,
+    cwd: Option<&str>,
+    args: I,
+    timeout_secs: u64,
+    stdout_cap: usize,
+    stop_on_stdout_cap: bool,
+) -> Result<GitOutput>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    run_git_full(
+        workspace,
+        cwd,
+        args,
+        timeout_secs,
+        stdout_cap,
+        stop_on_stdout_cap,
+        RunOptions::default(),
+    )
+}
+
+fn run_git_full<I, S>(
+    workspace: &WorkspaceEnv,
+    cwd: Option<&str>,
+    args: I,
+    timeout_secs: u64,
+    stdout_cap: usize,
+    stop_on_stdout_cap: bool,
+    options: RunOptions,
+) -> Result<GitOutput>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let dur = Duration::from_secs(timeout_secs.clamp(1, MAX_TIMEOUT_SECS));
+    if workspace.is_wsl() && !options.env.is_empty() {
+        // `wsl.exe` does not forward the environment without WSLENV plumbing.
+        return Err(GitError::command(
+            "git",
+            "environment overrides are not supported in WSL workspaces",
+        ));
+    }
+    let mut args: Vec<OsString> = args
+        .into_iter()
+        .map(|arg| arg.as_ref().to_os_string())
+        .collect();
+    harden_inspection(&mut args);
+    let mut cmd = build_git_command(workspace, cwd, &args)?;
+    cmd.env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_ASKPASS", "")
+        .env("SSH_ASKPASS", "")
+        .env("GIT_OPTIONAL_LOCKS", "0")
+        .env("GCM_INTERACTIVE", "Never")
+        .env("GCM_PROVIDER", "")
+        .env("LC_ALL", "C")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    // A repository or configuration redirect inherited from the launching shell
+    // must never steer an invocation; callers that want one pass it in
+    // `options.env`.
+    for name in inherited_git_env_to_strip(std::env::vars_os().map(|(key, _)| key)) {
+        cmd.env_remove(name);
+    }
+    for (key, value) in &options.env {
+        cmd.env(key, value);
+    }
+    cmd.stdin(if options.stdin.is_some() {
+        Stdio::piped()
+    } else {
+        Stdio::null()
+    });
+    crate::modules::proc::hide_console(&mut cmd);
+
+    let captured = capture::run_with_input(
+        &mut cmd,
+        dur,
+        Limits {
+            stdout: stdout_cap,
+            stderr: MAX_OUTPUT_BYTES,
+            stop_on_stdout_cap,
+        },
+        options.stdin,
+    )
+    .map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied => {
+            GitError::Spawn(e.to_string())
+        }
+        _ => GitError::Io(e),
+    })?;
+
+    Ok(GitOutput {
+        stdout: captured.stdout,
+        stderr: captured.stderr,
+        exit_code: captured.exit_code,
+        timed_out: captured.timed_out,
+        truncated: captured.stdout_truncated,
+    })
+}
+
+// Fsmonitor is an executable repository setting, even for status. User-requested
+// write hooks remain enabled; no passive diff surface needs external converters.
+fn harden_inspection(args: &mut Vec<OsString>) {
+    let mut command = 0;
+    while command < args.len() {
+        if args[command] == "-c" || args[command] == "-C" {
+            command += 2;
+        } else if args[command].to_string_lossy().starts_with('-') {
+            command += 1;
+        } else {
+            break;
+        }
+    }
+    if command < args.len() {
+        if matches!(
+            args[command].to_str(),
+            Some("diff" | "show" | "log" | "diff-tree" | "diff-index" | "diff-files")
+        ) {
+            args.splice(
+                command + 1..command + 1,
+                ["--no-ext-diff".into(), "--no-textconv".into()],
+            );
+        }
+        args.splice(
+            command..command,
+            // Git 2.23 treats "false" as a hook filename; an empty path disables it.
+            ["-c".into(), "core.fsmonitor=".into()],
+        );
+    }
+}
+
+/// Variables that redirect git to another repository, object store, namespace
+/// or configuration. Fixed names are always listed (removing an unset variable
+/// is harmless); the numbered `GIT_CONFIG_KEY_<n>` / `GIT_CONFIG_VALUE_<n>`
+/// pairs are matched against what is actually set.
+const REDIRECTING_GIT_VARS: &[&str] = &[
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_NAMESPACE",
+    "GIT_PREFIX",
+    "GIT_CONFIG_COUNT",
+    "GIT_CONFIG_PARAMETERS",
+];
+
+pub(crate) fn inherited_git_env_to_strip(
+    inherited: impl Iterator<Item = OsString>,
+) -> Vec<OsString> {
+    let mut out: Vec<OsString> = REDIRECTING_GIT_VARS.iter().map(OsString::from).collect();
+    for key in inherited {
+        let Some(name) = key.to_str() else {
+            continue;
+        };
+        if name.starts_with("GIT_CONFIG_KEY_") || name.starts_with("GIT_CONFIG_VALUE_") {
+            out.push(key);
+        }
+    }
+    out
+}
+
+fn build_git_command(
+    _workspace: &WorkspaceEnv,
+    cwd: Option<&str>,
+    args: &[OsString],
+) -> Result<Command> {
+    #[cfg(windows)]
+    if let WorkspaceEnv::Wsl { distro } = _workspace {
+        validate_wsl_distro_name(distro)
+            .map_err(|_| GitError::command("unsafe WSL distro name", distro.clone()))?;
+        let mut cmd = Command::new("wsl.exe");
+        cmd.arg("-d").arg(distro);
+        if let Some(cwd) = cwd.filter(|s| !s.is_empty()) {
+            cmd.arg("--cd").arg(cwd);
+        }
+        cmd.arg("--exec").arg("git");
+        cmd.args(args);
+        return Ok(cmd);
+    }
+
+    let mut cmd = Command::new("git");
+    cmd.args(args);
+    if let Some(dir) = cwd.filter(|s| !s.is_empty()) {
+        cmd.current_dir(Path::new(dir));
+    }
+    Ok(cmd)
+}
+
+pub fn ensure_success(output: &GitOutput, context: &'static str) -> Result<()> {
+    if output.timed_out {
+        return Err(GitError::TimedOut(context));
+    }
+    if output.exit_code == Some(0) {
+        return Ok(());
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if let Some(err) = classify_auth_error(&stderr) {
+        return Err(err);
+    }
+    let detail = if !stderr.is_empty() {
+        stderr
+    } else if !stdout.is_empty() {
+        stdout
+    } else {
+        "unknown git error".into()
+    };
+    Err(GitError::CommandFailed { context, detail })
+}
+
+fn classify_auth_error(stderr: &str) -> Option<GitError> {
+    let lower = stderr.to_ascii_lowercase();
+    if lower.contains("could not read username")
+        || lower.contains("could not read password")
+        || lower.contains("authentication failed")
+        || lower.contains("permission denied (publickey)")
+        || lower.contains("invalid credentials")
+    {
+        return Some(GitError::AuthRequired(
+            stderr.lines().next().unwrap_or(stderr).to_string(),
+        ));
+    }
+    if lower.contains("host key verification failed") {
+        return Some(GitError::HostKeyUnverified);
+    }
+    None
+}
+
+pub(crate) fn decode_text(bytes: Vec<u8>) -> TextSource {
+    let sniff_len = bytes.len().min(8192);
+    if bytes[..sniff_len].contains(&0) {
+        return TextSource::Binary;
+    }
+    match String::from_utf8(bytes) {
+        Ok(text) => TextSource::Text(text),
+        Err(e) => TextSource::Text(String::from_utf8_lossy(&e.into_bytes()).into_owned()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(windows)]
+    use super::build_git_command;
+    use super::{
+        classify_auth_error, decode_text, harden_inspection, parse_git_version,
+        prune_expired_availability_entries, version_meets_minimum, Availability, AvailabilityCache,
+        AVAILABILITY_TTL,
+    };
+    use crate::modules::git::errors::GitError;
+    use crate::modules::git::types::TextSource;
+    #[cfg(windows)]
+    use crate::modules::workspace::WorkspaceEnv;
+    use std::collections::HashMap;
+    use std::ffi::OsString;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn inspection_disables_fsmonitor_as_an_empty_hook_path_for_git_2_23() {
+        let mut args: Vec<OsString> = ["-c", "core.fsmonitor=false", "status", "--porcelain"]
+            .into_iter()
+            .map(OsString::from)
+            .collect();
+        harden_inspection(&mut args);
+        assert_eq!(
+            args,
+            [
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.fsmonitor=",
+                "status",
+                "--porcelain"
+            ]
+            .map(OsString::from)
+        );
+    }
+
+    #[test]
+    fn inherited_redirects_are_all_stripped_but_unrelated_config_is_kept() {
+        let inherited = [
+            "PATH",
+            "HOME",
+            "GIT_CONFIG_GLOBAL",
+            "GIT_CONFIG_NOSYSTEM",
+            "GIT_CEILING_DIRECTORIES",
+            "GIT_CONFIG_KEY_0",
+            "GIT_CONFIG_VALUE_0",
+            "GIT_CONFIG_KEY_12",
+            "GIT_AUTHOR_NAME",
+        ]
+        .map(std::ffi::OsString::from);
+        let strip: Vec<String> = super::inherited_git_env_to_strip(inherited.into_iter())
+            .into_iter()
+            .map(|n| n.to_string_lossy().into_owned())
+            .collect();
+        for must in [
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_COMMON_DIR",
+            "GIT_OBJECT_DIRECTORY",
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+            "GIT_NAMESPACE",
+            "GIT_PREFIX",
+            "GIT_CONFIG_COUNT",
+            "GIT_CONFIG_PARAMETERS",
+            "GIT_CONFIG_KEY_0",
+            "GIT_CONFIG_VALUE_0",
+            "GIT_CONFIG_KEY_12",
+        ] {
+            assert!(strip.iter().any(|n| n == must), "{must} must be stripped");
+        }
+        for keep in [
+            "PATH",
+            "HOME",
+            "GIT_CONFIG_GLOBAL",
+            "GIT_CONFIG_NOSYSTEM",
+            "GIT_AUTHOR_NAME",
+            // A deliberate user bound on repository discovery, not a redirect.
+            "GIT_CEILING_DIRECTORIES",
+        ] {
+            assert!(!strip.iter().any(|n| n == keep), "{keep} must be kept");
+        }
+    }
+
+    #[test]
+    fn extracts_simple_version() {
+        assert_eq!(
+            parse_git_version("git version 2.42.0"),
+            Some("2.42.0".into())
+        );
+    }
+
+    #[test]
+    fn extracts_apple_version() {
+        assert_eq!(
+            parse_git_version("git version 2.39.3 (Apple Git-145)"),
+            Some("2.39.3".into())
+        );
+    }
+
+    #[test]
+    fn version_compare() {
+        assert!(version_meets_minimum("2.23.0", "2.23"));
+        assert!(version_meets_minimum("2.40.1", "2.23"));
+        assert!(version_meets_minimum("3.0.0", "2.23"));
+        assert!(!version_meets_minimum("2.22.0", "2.23"));
+        assert!(!version_meets_minimum("1.9.5", "2.23"));
+        // patch component must not regress the comparison
+        assert!(version_meets_minimum("2.23.5", "2.23.4"));
+        assert!(!version_meets_minimum("2.23.3", "2.23.4"));
+    }
+
+    #[test]
+    fn prunes_expired_workspace_availability_entries() {
+        let mut cache = HashMap::from([
+            (
+                "local".to_string(),
+                AvailabilityCache {
+                    value: Availability::Ok,
+                    checked_at: Instant::now(),
+                },
+            ),
+            (
+                "wsl:Ubuntu".to_string(),
+                AvailabilityCache {
+                    value: Availability::NotInstalled,
+                    checked_at: Instant::now() - AVAILABILITY_TTL - Duration::from_secs(1),
+                },
+            ),
+        ]);
+
+        prune_expired_availability_entries(&mut cache);
+
+        assert!(cache.contains_key("local"));
+        assert!(!cache.contains_key("wsl:Ubuntu"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn builds_wsl_git_command_with_cd_and_exec() {
+        let cmd = build_git_command(
+            &WorkspaceEnv::Wsl {
+                distro: "Ubuntu".into(),
+            },
+            Some("/home/vinicios/Nova pasta/repo"),
+            &[OsString::from("status"), OsString::from("--short")],
+        )
+        .expect("valid WSL distro");
+        let program = cmd.get_program().to_string_lossy().into_owned();
+        let args: Vec<String> = cmd
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(program, "wsl.exe");
+        assert_eq!(
+            args,
+            vec![
+                "-d",
+                "Ubuntu",
+                "--cd",
+                "/home/vinicios/Nova pasta/repo",
+                "--exec",
+                "git",
+                "status",
+                "--short",
+            ]
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn rejects_unsafe_wsl_distro_name_for_git_command() {
+        let err = build_git_command(
+            &WorkspaceEnv::Wsl {
+                distro: "../Ubuntu".into(),
+            },
+            None,
+            &[],
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("unsafe WSL distro name"));
+    }
+
+    #[test]
+    fn detects_common_auth_failures_case_insensitively() {
+        for stderr in [
+            "fatal: could not read Username for 'https://github.com': terminal prompts disabled",
+            "error: could not read Password for 'https://example.com': No such device",
+            "remote: Authentication FAILED for the repository",
+            "git@github.com: Permission denied (publickey).",
+            "fatal: Invalid credentials for 'https://github.com'",
+        ] {
+            let err = classify_auth_error(stderr).expect("auth error detected");
+            assert!(matches!(err, GitError::AuthRequired(_)));
+        }
+    }
+
+    #[test]
+    fn host_key_verification_is_classified_separately() {
+        let err = classify_auth_error(
+            "@@@@@@@@@@@@@@@@@@@@@@@\nHost key verification failed.\nfatal: Could not read from remote repository.",
+        )
+        .expect("host key failure detected");
+        assert!(matches!(err, GitError::HostKeyUnverified));
+        assert!(!matches!(err, GitError::AuthRequired(_)));
+    }
+
+    #[test]
+    fn auth_error_carries_first_stderr_line() {
+        let err =
+            classify_auth_error("remote: denied\nfatal: could not read username\nmore detail")
+                .expect("auth error");
+        match err {
+            GitError::AuthRequired(line) => assert_eq!(line, "remote: denied"),
+            other => panic!("expected AuthRequired, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn classifies_host_key_verification_failure() {
+        assert!(matches!(
+            classify_auth_error("fatal: Host key verification failed."),
+            Some(GitError::HostKeyUnverified)
+        ));
+    }
+
+    #[test]
+    fn leaves_unrelated_stderr_untouched() {
+        assert!(classify_auth_error(
+            "fatal: not a git repository (or any of the parent directories)"
+        )
+        .is_none());
+        assert!(classify_auth_error("").is_none());
+        assert!(
+            classify_auth_error("error: RPC failed because the HTTP client could not connect")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn decode_text_flags_nulls_as_binary() {
+        let mut bytes = b"hello".to_vec();
+        bytes.push(0);
+        bytes.extend_from_slice(b"world");
+        assert!(matches!(decode_text(bytes), TextSource::Binary));
+    }
+
+    #[test]
+    fn decode_text_passes_ascii_through() {
+        let expected = "main\n5c2f4cd fix(ai): route status-bar AI button\n";
+        let bytes = expected.as_bytes().to_vec();
+        match decode_text(bytes) {
+            TextSource::Text(text) => assert_eq!(text, expected),
+            TextSource::Binary => panic!("expected text, got binary"),
+            TextSource::Missing => panic!("expected text, got missing"),
+        }
+    }
+
+    #[test]
+    fn decode_text_lossy_for_invalid_utf8() {
+        let bytes = vec![b'a', 0xFF, b'b'];
+        match decode_text(bytes) {
+            TextSource::Text(s) => assert_eq!(s, "a\u{FFFD}b"),
+            TextSource::Binary => panic!("expected text, got binary"),
+            TextSource::Missing => panic!("expected text, got missing"),
+        }
+    }
+
+    #[test]
+    fn decode_text_binary_sniff_is_bounded() {
+        let mut bytes = vec![b'a'; 8192];
+        bytes.push(0);
+        match decode_text(bytes) {
+            TextSource::Text(_) => {}
+            TextSource::Binary => panic!("null beyond the sniff window must not be detected"),
+            TextSource::Missing => panic!("expected text, got missing"),
+        }
+    }
+
+    #[test]
+    fn decode_text_null_at_sniff_boundary() {
+        let mut within = vec![b'a'; 8191];
+        within.push(0);
+        assert!(matches!(decode_text(within), TextSource::Binary));
+    }
+}

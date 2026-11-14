@@ -1,0 +1,12 @@
+import { createRoot } from "react-dom/client";
+import { AiToolApproval } from "../workbench/src/modules/ai/components/AiToolApproval";
+import { setLocale } from "../src/localization";
+import "../workbench/src/styles/globals.css";
+const names = ["write_file", "edit", "multi_edit", "create_directory", "bash_run", "bash_background", "unknown_raw_tool"];
+const path = "C:/owned-fixture/" + "unchangedpath".repeat(24) + ".txt";
+const input = { path, command: "echo RAW_ARGUMENT_unchanged", cwd: path, content: "fixture", old_string: "a", new_string: "b", edits: [] };
+const responses: { name: string; approved: boolean }[] = [];
+const parts = names.map(name => ({ type: "tool-jarvis_action" as const, toolCallId: `call-${name}`, state: "approval-requested" as const, input: { name, args: input }, approval: { id: `approval-${name}` } }));
+const callbacks = names.map(name => (approved: boolean) => responses.push({ name, approved }));
+(window as any).__approvalLocaleQA = { locale: setLocale, responses, parts, callbacks, input, path };
+createRoot(document.getElementById("root")!).render(<main style={{ padding: 12 }}>{names.map((name, i) => <section key={name} aria-label={name} style={{ marginBottom: 12 }}><AiToolApproval toolName="jarvis_action" part={parts[i]} onRespond={callbacks[i]} /></section>)}</main>);

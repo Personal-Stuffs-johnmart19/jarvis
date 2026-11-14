@@ -1,0 +1,5 @@
+# Jarvis runs from its checkout; this config does not install or launch the app.
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+pythonpath = ["."]
+norecursedirs = [".cache", ".venv", "node_modules", "target", "dist", "models"]

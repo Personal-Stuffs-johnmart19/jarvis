@@ -1,0 +1,19 @@
+{
+  "name": "jarvis-development-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Pinned external development apps; kept separate from the Jarvis runtime",
+  "devDependencies": {
+    "@babel/parser": "8.1.0",
+    "@codacy/analysis-cli": "0.25.0"
+  },
+  "scripts": {
+    "quality": "codacy-analysis analyze ../.. --tool Semgrep --staged --fail-if-missing --parallel-tools 2 --tool-timeout 60000",
+    "lint": "codacy-analysis analyze ../.. --tool Ruff --tool ESLint9 --staged --fail-if-missing --parallel-tools 2 --tool-timeout 60000",
+    "setup": "codacy-analysis install --tool ESLint9 --tool Semgrep",
+    "review": "coderabbit review --agent --uncommitted --dir ../.."
+  },
+  "engines": {
+    "node": ">=24.22.1 <25"
+  }
+}

@@ -1,0 +1,90 @@
+.language-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+.language-picker .language-picker-trigger,
+.sidebar .language-picker .language-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.65rem;
+  color: var(--text, var(--foreground));
+  border: 1px solid var(--line, var(--border));
+  border-radius: 0.65rem;
+  background: var(--field, var(--card));
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.language-picker-trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.language-picker-chevron,
+.language-picker-check {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.language-picker-trigger:focus-visible,
+.language-picker-trigger[data-state="open"] {
+  outline: 2px solid var(--accent, var(--ring));
+  outline-offset: 2px;
+}
+.language-picker-content {
+  z-index: 100;
+  min-width: var(--radix-select-trigger-width);
+  max-width: var(--radix-select-content-available-width);
+  max-height: var(--radix-select-content-available-height);
+  overflow: hidden;
+  color: var(--text, var(--foreground));
+  border: 1px solid var(--line, var(--border));
+  border-radius: 0.65rem;
+  background: var(--field, var(--card));
+  /* Portalled options need an opaque surface, including translucent glass themes. */
+  background: rgb(from var(--field, var(--card)) r g b);
+  box-shadow: var(--shadow);
+  font-family: inherit;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.language-picker-viewport {
+  padding: 0.3rem;
+}
+.language-picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+.language-picker-option[data-state="checked"] {
+  color: var(--text, var(--foreground));
+  font-weight: 600;
+}
+.language-picker-option[data-highlighted] {
+  color: var(--text, var(--foreground));
+  background: color-mix(in srgb, var(--accent, var(--ring)) 22%, transparent);
+  box-shadow: inset 0 0 0 1px var(--accent, var(--ring));
+}
+.language-picker-check {
+  color: var(--accent, var(--ring));
+}
+.language-picker-scroll {
+  display: flex;
+  justify-content: center;
+  padding: 0.2rem;
+  color: var(--muted, var(--text, var(--foreground)));
+  font-size: 0.65rem;
+}

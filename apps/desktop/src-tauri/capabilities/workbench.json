@@ -1,0 +1,25 @@
+{
+  "identifier": "workbench",
+  "description": "Shared workbench services in the main Jarvis webview only",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:event:allow-emit",
+    "notification:default",
+    "os:default",
+    "store:default",
+    "core:path:allow-resolve-directory",
+    "core:path:allow-join",
+    "core:app:allow-version",
+    "opener:default",
+    "autostart:allow-is-enabled",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "clipboard-manager:allow-read-text",
+    "clipboard-manager:allow-write-text",
+    "core:window:allow-set-focus",
+    "core:window:allow-show",
+    "core:webview:allow-set-webview-zoom"
+  ]
+}

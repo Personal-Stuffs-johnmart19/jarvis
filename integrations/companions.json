@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "platform": "windows-x86_64",
+  "components": {
+    "terax": {
+      "name": "Jarvis terminal CLI",
+      "revision": "f7bee29d8690aa0afe37ed8b4c94daeb5b0211ad",
+      "cli_revision": "f7bee29d8690aa0afe37ed8b4c94daeb5b0211ad",
+      "executable": "terax/2e2471fb833e097d/terax-cli.exe",
+      "files": {
+        "terax/2e2471fb833e097d/terax-cli.exe": "2e2471fb833e097d0edd8f0dc525f1dcd02ed0dc3254110acbbb5a871bd8ed51",
+        "terax/2e2471fb833e097d/LICENSE": "c25ae50f892cf5ba497c3babb61ad7c687d2b906917ded5739934783edb053c8"
+      }
+    }
+  }
+}
