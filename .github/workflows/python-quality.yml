@@ -18,7 +18,6 @@ on:
       - 'start_*.ps1'
       - 'launch_local.py'
       - 'start_local.py'
-      - 'main.py'
       - 'pyproject.toml'
       - '.github/workflows/python-quality.yml'
   pull_request:
@@ -38,7 +37,6 @@ on:
       - 'start_*.ps1'
       - 'launch_local.py'
       - 'start_local.py'
-      - 'main.py'
       - 'pyproject.toml'
       - '.github/workflows/python-quality.yml'
   workflow_dispatch:

@@ -49,6 +49,7 @@ class AutoStartupTests(unittest.TestCase):
             child = root / "check.py"
             child.write_text("""from pathlib import Path
 import sys, time
+sys.path.insert(0, str(Path.cwd()))
 from local_mode import setup_state
 root=Path(sys.argv[1])
 setup_state.MODEL_FILES=("model.bin",)
@@ -72,3 +73,53 @@ setup_state.check_environment(root)
                     if process.poll() is None:
                         process.terminate()
                         process.wait(timeout=5)
+
+
+def test_startup_log_failure_still_reports_a_visible_error(tmp_path):
+    from unittest.mock import Mock
+    (tmp_path / "data").write_text("owned blocking file")
+    report = Mock()
+    with patch.object(launch_local, "ROOT", tmp_path), patch.object(launch_local, "_show_startup_error", report):
+        assert launch_local.main() == 1
+    assert "Startup diagnostics could not be written" in report.call_args.args[1]
+
+
+def test_cli_argument_failure_is_reported_after_preserving_usage(tmp_path):
+    from unittest.mock import Mock
+    report = Mock()
+    def usage(_):
+        print("Owned argument usage", file=sys.stderr)
+        raise SystemExit(2)
+    with patch.object(launch_local, "ROOT", tmp_path), patch("local_mode.instance.is_running", return_value=False), patch("local_mode.setup_state.check_environment", return_value=False), patch("local_mode.cli.main", side_effect=usage), patch.object(launch_local, "_show_startup_error", report), patch.object(sys, "argv", ["launch_local.py", "--owned-invalid"]):
+        assert launch_local.main() == 2
+    assert "Owned argument usage" in (tmp_path / "data/logs/startup.log").read_text()
+    report.assert_called_once_with(tmp_path / "data/logs/startup.log")
+
+
+def test_startup_application_failure_is_logged_and_reported(tmp_path):
+    from unittest.mock import Mock
+    report = Mock()
+    with patch.object(launch_local, "ROOT", tmp_path), patch("local_mode.instance.is_running", return_value=False), patch("local_mode.setup_state.check_environment", return_value=False), patch("local_mode.cli.main", side_effect=RuntimeError("Owned startup failure")), patch.object(launch_local, "_show_startup_error", report), patch.object(sys, "argv", ["launch_local.py", "--remote"]):
+        assert launch_local.main() == 1
+    assert "Owned startup failure" in (tmp_path / "data/logs/startup.log").read_text()
+    report.assert_called_once_with(tmp_path / "data/logs/startup.log")
+
+
+def test_successful_cli_exit_does_not_show_failure(tmp_path):
+    from unittest.mock import Mock
+    report = Mock()
+    with patch.object(launch_local, "ROOT", tmp_path), patch("local_mode.instance.is_running", return_value=False), patch("local_mode.setup_state.check_environment", return_value=False), patch("local_mode.cli.main", side_effect=SystemExit(0)), patch.object(launch_local, "_show_startup_error", report), patch.object(sys, "argv", ["launch_local.py", "--help"]):
+        assert launch_local.main() == 0
+    report.assert_not_called()
+
+
+def test_remote_runtime_option_reaches_unified_desktop(monkeypatch):
+    import os
+    from types import SimpleNamespace
+    from local_mode import cli
+    settings = SimpleNamespace(model="gemini-3.5-flash-lite", auto_fallback=False)
+    with patch.dict(os.environ), patch.object(cli.Settings, "from_env", return_value=settings), patch("local_mode.desktop_launch.launch", return_value=0) as launch:
+        os.environ.pop("JARVIS_BLUETOOTH", None)
+        assert cli.main(["--remote"]) == 0
+        assert os.environ["JARVIS_BLUETOOTH"] == "1"
+        launch.assert_called_once_with(Path(cli.__file__).resolve().parent.parent)

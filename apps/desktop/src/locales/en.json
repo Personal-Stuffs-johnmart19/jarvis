@@ -24,7 +24,7 @@
   "Context / Output": "Context / Output",
   "Yes": "Yes",
   "Not found": "Not found",
-  "Launch Jarvis via Jarvis.cmd. Browser view is not connected to Python.": "Launch Jarvis via Jarvis.cmd. Browser view is not connected to Python.",
+  "Launch Jarvis via START.cmd. Browser view is not connected to Python.": "Launch Jarvis via START.cmd. Browser view is not connected to Python.",
   "Multimodal embeddings": "Multimodal embeddings",
   "Embedding 2 / Local EmbeddingGemma 2": "Embedding 2 / Local EmbeddingGemma 2",
   "Computing embedding": "Computing embedding",

@@ -1,6 +1,8 @@
 # Setup
 
-Run `INSTALL.cmd` for first-time installation, then `START.cmd` or `Jarvis.cmd`. Startup checks the environment and launches the SHA-256-selected portable from `desktop-bin/manifest.json`. Python services remain separate from the native executable; a lone EXE is not the entire installation.
+Run `INSTALL.cmd` for first-time installation, then `START.cmd`. Startup checks the environment and launches the SHA-256-selected portable from `desktop-bin/manifest.json`. Python services remain separate from the native executable; a lone EXE is not the entire installation.
+
+`INSTALL.cmd` accepts setup options only: `-Python "C:\Path with spaces\python.exe"` selects an existing Python 3.12 runtime, and `-NonInteractive` skips prompts. Pass application options to `START.cmd`, for example `START.cmd --remote` or `START.cmd --model <supported-id>`. Cold startup preserves these application options after setup.
 
 Configure provider credentials and endpoints in **Settings → Integrations**. Choose the shared chat model in **Models & Providers**. Select microphone, synthesis model and speaker in **Speech & Voice**. The camera is optional and off by default. Do not infer speech processing location from the selected chat model.
 
