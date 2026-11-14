@@ -156,7 +156,7 @@ def send_message(
     session_memory=None
 ) -> str:
     """
-    Called from main.py.
+    Called from the assistant runtime.
 
     parameters:
         receiver     : Contact name to send to
