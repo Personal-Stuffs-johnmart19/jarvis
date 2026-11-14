@@ -49,6 +49,7 @@ class AutoStartupTests(unittest.TestCase):
             child = root / "check.py"
             child.write_text("""from pathlib import Path
 import sys, time
+sys.path.insert(0, str(Path.cwd()))
 from local_mode import setup_state
 root=Path(sys.argv[1])
 setup_state.MODEL_FILES=("model.bin",)
