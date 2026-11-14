@@ -1,6 +1,6 @@
 {
-  "version": "0.1.0",
-  "sha256": "3c70618153cc1b4ab9bf709fb84e5868825c325689566a408171205839aeb04f",
   "platform": "windows-x86_64",
-  "file": "jarvis-desktop-3c70618153cc1b4ab9bf709fb84e5868825c325689566a408171205839aeb04f.exe"
+  "version": "0.1.0",
+  "file": "jarvis-desktop-1f9eeda874796f6d3bfb8cf0d5f19632e9642a2cc0c235074d8e64d147c09dfa.exe",
+  "sha256": "1f9eeda874796f6d3bfb8cf0d5f19632e9642a2cc0c235074d8e64d147c09dfa"
 }
