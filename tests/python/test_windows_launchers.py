@@ -23,9 +23,10 @@ def test_windows_powershell_parses_supported_entrypoints_without_executing(name)
     from local_mode.setup_state import _system_directory
     host = _system_directory() / "WindowsPowerShell/v1.0/powershell.exe"
     script = "$e=$null;$t=$null;[System.Management.Automation.Language.Parser]::ParseFile($env:JARVIS_PARSE_SCRIPT,[ref]$t,[ref]$e)|Out-Null;[pscustomobject]@{version=$PSVersionTable.PSVersion.Major;errors=@($e|ForEach-Object{$_.ErrorId})}|ConvertTo-Json -Compress"
+    # Shared CI hosts may cold-start Windows PowerShell slowly; this checks syntax, not launch latency.
     result = subprocess.run([str(host), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script],
                             env={**os.environ, "JARVIS_PARSE_SCRIPT": str(ROOT / name)}, capture_output=True,
-                            encoding="utf-8", errors="strict", timeout=15, creationflags=subprocess.CREATE_NO_WINDOW)
+                            encoding="utf-8", errors="strict", timeout=60, creationflags=subprocess.CREATE_NO_WINDOW)
     assert result.returncode == 0, result.stderr
     parsed = json.loads(result.stdout)
     assert parsed["version"] == 5
