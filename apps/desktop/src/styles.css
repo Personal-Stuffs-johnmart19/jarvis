@@ -10,6 +10,8 @@
   --button: rgba(66, 86, 129, 0.28);
   --accent: #abc3ff;
   --field: rgba(10, 22, 45, 0.65);
+  --popover: #1c2946;
+  --popover-foreground: var(--text);
   --shadow: 0 16px 44px #060c2330;
   color-scheme: dark;
 }
@@ -889,6 +891,8 @@ kbd {
   --line: rgba(73, 98, 144, 0.24);
   --button: rgba(239, 245, 255, 0.4);
   --field: rgba(244, 248, 255, 0.72);
+  --popover: #e9f1ff;
+  --popover-foreground: var(--text);
   --shadow: 0 12px 36px #2c4a741a;
   color-scheme: light;
 }

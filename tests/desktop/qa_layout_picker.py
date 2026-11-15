@@ -18,29 +18,137 @@ def _picker_surface(page, options, fixture, name):
     surface = options.evaluate("""el => {
         const style=getComputedStyle(el), rect=el.getBoundingClientRect(), doc=el.ownerDocument;
         const canvas=doc.createElement('canvas'); canvas.width=canvas.height=1;
-        const context=canvas.getContext('2d'); context.fillStyle=style.backgroundColor; context.fillRect(0,0,1,1);
-        const rgba=Array.from(context.getImageData(0,0,1,1).data);
-        const field=getComputedStyle(doc.documentElement).getPropertyValue('--field').trim();
-        context.clearRect(0,0,1,1); context.fillStyle=field; context.fillRect(0,0,1,1);
-        const sourceRgba=Array.from(context.getImageData(0,0,1,1).data);
+        const context=canvas.getContext('2d');
+        const rgba=color=>{context.clearRect(0,0,1,1);context.fillStyle=color;context.fillRect(0,0,1,1);return Array.from(context.getImageData(0,0,1,1).data);};
+        const over=(fg,bg)=>fg.slice(0,3).map((v,i)=>v*fg[3]/255+bg[i]*(1-fg[3]/255));
+        const luminance=rgb=>rgb.map(v=>v/255).map(v=>v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4).reduce((n,v,i)=>n+v*[0.2126,0.7152,0.0722][i],0);
+        const contrast=(a,b)=>{const x=luminance(a),y=luminance(b);return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);};
+        const popup=rgba(style.backgroundColor);
+        const rows=[...el.querySelectorAll('[role="option"]')].map(option=>{
+            const s=getComputedStyle(option), background=over(rgba(s.backgroundColor),popup);
+            const label=getComputedStyle(option.querySelector('span[lang]') || option);
+            const foreground=over(rgba(label.color),background);
+            return {text:option.textContent,selected:option.getAttribute('aria-selected'),state:option.dataset.state,
+                highlighted:option.hasAttribute('data-highlighted'),background:s.backgroundColor,foreground:label.color,
+                compositeBackground:background,compositeForeground:foreground,contrast:contrast(foreground,background),
+                opacity:s.opacity,labelOpacity:label.opacity,visibility:label.visibility};
+        });
+        const tokens=Object.fromEntries(['--field','--card','--text','--foreground','--accent','--ring','--popover','--popover-foreground'].map(key=>[key,getComputedStyle(doc.documentElement).getPropertyValue(key).trim()]));
         const hit=doc.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2);
-        return {background:style.backgroundColor,foreground:style.color,rgba,sourceRgba,field,opacity:style.opacity,z:style.zIndex,
-            topmost:el.contains(hit), x:rect.x,y:rect.y,right:rect.right,bottom:rect.bottom,
+        return {background:style.backgroundColor,foreground:style.color,rgba:popup,tokens,options:rows,opacity:style.opacity,
+            topmost:el.contains(hit),x:rect.x,y:rect.y,right:rect.right,bottom:rect.bottom,
             width:doc.defaultView.innerWidth,height:doc.defaultView.innerHeight};
     }""")
-    assert surface['rgba'][3] == 255, surface
-    assert 0 < surface['sourceRgba'][3] < 255, surface
-    assert all(abs(a-b) <= 1 for a,b in zip(surface['rgba'][:3],surface['sourceRgba'][:3])), surface
-    assert surface['opacity'] == '1' and surface['topmost'], surface
-    assert surface['foreground'] != surface['background'], surface
-    assert surface['x'] >= 0 and surface['y'] >= 0, surface
-    assert surface['right'] <= surface['width'] + 1 and surface['bottom'] <= surface['height'] + 1, surface
+    evidence = {'surface':name, **surface}
+    page.screenshot(path=str(fixture / f'language-picker-{name}.png'))
+    (fixture / f'language-picker-{name}.json').write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding='utf8')
+    assert surface['rgba'][3] == 255, evidence
+    assert surface['opacity'] == '1' and surface['topmost'], evidence
+    assert surface['x'] >= 0 and surface['y'] >= 0, evidence
+    assert surface['right'] <= surface['width'] + 1 and surface['bottom'] <= surface['height'] + 1, evidence
     expect(options.get_by_role('option')).to_have_count(2)
     expect(options.get_by_role('option', name='English', exact=True)).to_be_visible()
     expect(options.get_by_role('option', name='Русский', exact=True)).to_be_visible()
-    page.screenshot(path=str(fixture / f'language-picker-{name}.png'))
-    return {'surface':name, **surface}
+    assert all(row['contrast'] >= 4.5 and row['opacity'] == '1' and row['labelOpacity'] == '1' and row['visibility'] == 'visible' for row in surface['options']), evidence
+    assert any(row['state'] == 'checked' for row in surface['options']), evidence
+    assert any(row['highlighted'] for row in surface['options']), evidence
+    return evidence
 
+
+def _picker_contrast_cases(page, fixture):
+    """Use production defaults first; white-alpha inputs must not become white popups."""
+    surfaces = []
+    page.add_init_script("window.addEventListener('message',event=>{if(event.origin===location.origin&&event.data?.type==='jarvis:theme'&&event.data.id)window.__qaResolvedTheme={id:event.data.id,mode:event.data.mode};});")
+    select_language(page, 'en')
+    for theme_id in ('terax-default', 'jarvis-glass'):
+        page.evaluate("""async id=>{const store=await window.__JARVIS_NATIVE__.store.load('terax-settings.json',{defaults:{}});await store.set('themeId',id);await store.save();}""", theme_id)
+        page.reload()
+        page.get_by_role('button', name='Chat', exact=True).wait_for()
+        page.wait_for_function("id=>window.__qaResolvedTheme?.id===id", arg=theme_id)
+        for theme in ('dark', 'light'):
+            if page.locator('html').get_attribute('data-theme') != theme:
+                page.get_by_role('button', name='Toggle Light and Dark Theme', exact=True).click()
+            # Reload reinstates production theme-derived colors, without stale test overrides.
+            page.reload()
+            page.get_by_role('button', name='Chat', exact=True).wait_for()
+            expect(page.locator('html')).to_have_attribute('data-theme', theme)
+            page.wait_for_function("({id,mode})=>window.__qaResolvedTheme?.id===id&&window.__qaResolvedTheme?.mode===mode", arg={'id':theme_id,'mode':theme})
+            for overlay in ('default', 'input-overlay', 'partial-palette'):
+                if overlay != 'default':
+                    _set_input_overlay(page, 'rgba(255, 255, 255, 0.13)' if theme == 'dark' else 'rgba(0, 0, 0, 0.13)', preserve_popup=overlay != 'partial-palette')
+                trigger = page.locator('.sidebar-bottom').get_by_role('combobox')
+                _check_open_picker(page, page, trigger, fixture, f'shell-{theme_id}-{theme}-{overlay}', surfaces)
+                page.get_by_role('button', name='Settings', exact=True).click()
+                dialog = page.locator('.global-settings[role="dialog"]')
+                frame = dialog.frame_locator('iframe[src="workbench-settings.html?embedded=1"]')
+                frame.locator('.language-picker-trigger').wait_for()
+                if overlay != 'default':
+                    _set_input_overlay(page, 'rgba(255, 255, 255, 0.13)' if theme == 'dark' else 'rgba(0, 0, 0, 0.13)', preserve_popup=overlay != 'partial-palette')
+                header_trigger = dialog.locator('.settings-header-actions').get_by_role('combobox')
+                _check_open_picker(page, page, header_trigger, fixture, f'settings-{theme_id}-{theme}-{overlay}', surfaces)
+                if overlay != 'default':
+                    field = 'rgba(255, 255, 255, 0.13)' if theme == 'dark' else 'rgba(0, 0, 0, 0.13)'
+                    frame.locator('html').evaluate("(el,field)=>el.style.setProperty('--field',field)", field)
+                _check_open_picker(page, frame, frame.locator('.language-picker-trigger'), fixture, f'embedded-{theme_id}-{theme}-{overlay}', surfaces)
+                dialog.get_by_role('button', name='Close Settings', exact=True).click()
+
+    (fixture / 'language-picker-contrast.json').write_text(json.dumps(surfaces, ensure_ascii=False, indent=2), encoding='utf8')
+    _picker_locale_retention(page)
+    print(json.dumps({'language_picker_surfaces':len(surfaces),
+                      'minimum_text_contrast':min(row['contrast'] for surface in surfaces for row in surface['options']),
+                      'keyboard_focus_and_en_ru_retention':'passed'}))
+
+
+def _set_input_overlay(page, field, preserve_popup=True):
+    page.frame_locator('iframe[src="workbench.html"]').locator('body').evaluate(
+        """(_body,{field,preserve})=>{const root=window.parent.document.documentElement,s=getComputedStyle(root);const colors={input:field};if(preserve){colors.popover=s.getPropertyValue('--popover').trim();colors.popoverForeground=s.getPropertyValue('--popover-foreground').trim();}window.parent.postMessage({type:'jarvis:theme',colors},location.origin);}""", {'field':field,'preserve':preserve_popup})
+    page.wait_for_function("""({field,preserve})=>{const root=document.documentElement;return getComputedStyle(root).getPropertyValue('--field').trim()===field&&(preserve||(!root.style.getPropertyValue('--popover')&&!root.style.getPropertyValue('--popover-foreground')));}""", arg={'field':field,'preserve':preserve_popup})
+
+
+def _check_open_picker(page, context, trigger, fixture, name, surfaces):
+    trigger.focus()
+    trigger.press('ArrowDown')
+    options = context.get_by_role('listbox')
+    expect(options.get_by_role('option', name='English', exact=True)).to_be_focused()
+    surfaces.append(_picker_surface(page, options, fixture, name + '-selected'))
+    options.press('End')
+    expect(options.get_by_role('option', name='Русский', exact=True)).to_be_focused()
+    surfaces.append(_picker_surface(page, options, fixture, name + '-highlighted'))
+    options.press('Escape')
+    expect(options).to_have_count(0)
+    expect(trigger).to_be_focused()
+
+def _picker_locale_retention(page):
+    # Exercise keyboard selection and persistence through each actual picker owner.
+    for owner in ('shell', 'settings', 'embedded'):
+        if owner != 'shell':
+            page.get_by_role('button', name='Settings', exact=True).click()
+            dialog = page.locator('.global-settings[role="dialog"]')
+            frame = dialog.frame_locator('iframe[src="workbench-settings.html?embedded=1"]')
+            expect(frame.locator('html')).to_have_attribute('lang', 'en')
+            trigger = (dialog.locator('.settings-header-actions').get_by_role('combobox')
+                       if owner == 'settings' else frame.locator('.language-picker-trigger'))
+            context = page if owner == 'settings' else frame
+        else:
+            trigger = page.locator('.sidebar-bottom').get_by_role('combobox')
+            context = page
+        trigger.focus()
+        trigger.press('ArrowDown')
+        options = context.get_by_role('listbox')
+        options.press('End')
+        expect(options.get_by_role('option', name='Русский', exact=True)).to_be_focused()
+        options.get_by_role('option', name='Русский', exact=True).press('Enter')
+        expect(trigger).to_be_focused()
+        expect(page.locator('html')).to_have_attribute('lang', 'ru')
+        if owner != 'shell':
+            expect(frame.locator('html')).to_have_attribute('lang', 'ru')
+        page.reload()
+        page.get_by_role('button', name='Чат', exact=True).wait_for()
+        expect(page.locator('.sidebar-bottom').get_by_role('combobox')).to_contain_text('Русский')
+        select_language(page, 'en')
+        page.reload()
+        page.get_by_role('button', name='Chat', exact=True).wait_for()
+        expect(page.locator('.sidebar-bottom').get_by_role('combobox')).to_contain_text('English')
 
 def _picker_basics(page, fixture):
     surfaces = []
@@ -123,6 +231,7 @@ def run_layout_picker(page, fixture):
     page.on('pageerror', lambda error: errors.append(str(error)))
     basics_checked = os.environ.get('JARVIS_QA_LAYOUT_GEOMETRY_ONLY') != '1'
     if basics_checked:
+        _picker_contrast_cases(page, fixture)
         _picker_basics(page, fixture)
     rows = []
     for zoom in (1, 2, 4):

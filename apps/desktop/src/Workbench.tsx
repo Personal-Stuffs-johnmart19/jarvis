@@ -19,13 +19,18 @@ const colorMap: Record<string, string> = {
   border: "--line",
   primary: "--accent",
   input: "--field",
+  popover: "--popover",
+  popoverForeground: "--popover-foreground",
   background: "--workbench-background",
   secondary: "--button",
 };
 export function applyWorkbenchTheme(colors: Record<string, string>) {
-  for (const [key, variable] of Object.entries(colorMap))
+  for (const [key, variable] of Object.entries(colorMap)) {
     if (typeof colors[key] === "string" && CSS.supports("color", colors[key]))
       document.documentElement.style.setProperty(variable, colors[key]);
+    else if (key === "popover" || key === "popoverForeground")
+      document.documentElement.style.removeProperty(variable);
+  }
 }
 export function Workbench({
   visible,
