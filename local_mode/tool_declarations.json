@@ -1242,17 +1242,13 @@
   },
   {
     "name": "autostart",
-    "description": "Controls whether Jarvis starts automatically at Windows login. Actions: status | enable | disable. 'enable' registers Jarvis in the startup list (optionally with the Bluetooth phone transport via 'remote'). Use for 'start at login', 'run on startup', 'open automatically'.",
+    "description": "Controls whether Jarvis starts automatically at Windows login. Actions: status | enable | disable. 'enable' registers Jarvis in the startup list. Use for 'start at login', 'run on startup', 'open automatically'.",
     "parameters": {
       "type": "object",
       "properties": {
         "action": {
           "type": "string",
           "description": "status | enable | disable (default: status)"
-        },
-        "remote": {
-          "type": "boolean",
-          "description": "For 'enable': also start the Bluetooth transport (default true)"
         }
       },
       "required": []

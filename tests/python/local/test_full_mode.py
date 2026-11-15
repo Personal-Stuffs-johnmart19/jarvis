@@ -108,7 +108,7 @@ class FullToolsTests(unittest.TestCase):
 
     def test_telegram_rejects_other_senders(self):
         from local_mode.remote import RemoteServices
-        remote = RemoteServices(None, Mock(), threading.Event(), Mock())
+        remote = RemoteServices(Mock(), threading.Event(), Mock())
         self.assertTrue(remote.allowed({"chat": {"id": 123}, "from": {"id": 123}}, "123"))
         self.assertFalse(remote.allowed({"chat": {"id": 123}, "from": {"id": 456}}, "123"))
         self.assertFalse(remote.allowed({"chat": {"id": -100}, "from": {"id": 123}}, "-100"))
@@ -276,13 +276,18 @@ class AccurateVoiceTests(unittest.TestCase):
             self.assertGreater(len(recognizer.return_value._accurate.call_args.args[0]), 30000)
 
 
-    def test_autostart_routes_to_unified_launcher_and_preserves_remote_option(self):
-        from actions.autostart import _launch_command
-        local = _launch_command(False)
-        remote = _launch_command(True)
-        self.assertIn("launch_local.py", local)
-        self.assertNotIn("--remote", local)
-        self.assertTrue(remote.endswith(" --remote"))
+    def test_autostart_routes_to_unified_launcher_without_phone_transport(self):
+        from actions.autostart import _launch_command, autostart_action
+        command = _launch_command()
+        self.assertIn("launch_local.py", command)
+        self.assertNotIn("--remote", command)
+        with patch("actions.autostart._set_run") as register:
+            result = autostart_action({"action": "enable", "remote": True})
+        register.assert_called_once_with(command)
+        self.assertEqual(result, "Autostart enabled, sir. Jarvis will launch at login.")
+        from local_mode.results import user_message
+        self.assertEqual(user_message({"ok": True, "result": result}, locale="ru"),
+                         "Автозапуск включён, сэр. Jarvis будет запускаться при входе в систему.")
 
 
     def test_wake_poll_extends_deadline_for_started_utterance(self):

@@ -4,6 +4,7 @@
 import sys
 import winreg
 from pathlib import Path
+from local_mode.messages import OwnedText
 
 RUN_KEY_PATH = r"Software\Microsoft\Windows\CurrentVersion\Run"
 TASK_NAME    = "Jarvis"
@@ -15,7 +16,7 @@ def get_base_dir() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
-def _launch_command(remote: bool) -> str:
+def _launch_command() -> str:
     base   = get_base_dir()
     main   = base / "launch_local.py"
     exe    = sys.executable
@@ -23,8 +24,6 @@ def _launch_command(remote: bool) -> str:
     if not pyw.exists():
         pyw = Path(exe)
     cmd = f'"{pyw}" -u "{main}"'
-    if remote:
-        cmd += " --remote"
     return cmd
 
 
@@ -62,7 +61,6 @@ def autostart_action(
     """Autostart control: status | enable | disable"""
     params = parameters or {}
     action = str(params.get("action", "status")).lower().strip()
-    remote = str(params.get("remote", "true")).lower() in ("true", "1", "yes", "on")
 
     try:
         if action in ("status", "check"):
@@ -74,10 +72,9 @@ def autostart_action(
                     f"Command: {val}")
 
         if action in ("enable", "on", "add"):
-            cmd = _launch_command(remote)
+            cmd = _launch_command()
             _set_run(cmd)
-            suffix = "with the phone bridge (--remote)" if remote else "in local mode"
-            return f"Autostart enabled, sir. Jarvis will launch at login {suffix}."
+            return OwnedText("Autostart enabled, sir. Jarvis will launch at login.")
 
         if action in ("disable", "off", "remove", "delete"):
             removed = _del_run()

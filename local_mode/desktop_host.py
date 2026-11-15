@@ -612,7 +612,6 @@ class DesktopRuntime:
             if os.environ.get("JARVIS_DESKTOP_TEST") != "1":
                 bot.background.start()
             self.remote = RemoteServices(
-                self,
                 lambda command, **kw: self.submit(
                     "chat", {"text": command}, kw.get("source", "remote")
                 ),

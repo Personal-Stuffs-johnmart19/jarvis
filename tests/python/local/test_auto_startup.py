@@ -25,18 +25,18 @@ class AutoStartupTests(unittest.TestCase):
             repair.assert_not_called()
 
     def test_repaired_environment_relaunches_with_original_arguments(self):
-        with tempfile.TemporaryDirectory() as folder, patch.object(launch_local, "ROOT", Path(folder)), patch("local_mode.instance.is_running", return_value=False), patch("local_mode.setup_state.check_environment", return_value=True), patch.object(launch_local.subprocess, "Popen") as start, patch.object(sys, "argv", ["launch_local.py", "--remote", "--model", "gemini-3.5-flash-lite"]):
+        with tempfile.TemporaryDirectory() as folder, patch.object(launch_local, "ROOT", Path(folder)), patch("local_mode.instance.is_running", return_value=False), patch("local_mode.setup_state.check_environment", return_value=True), patch.object(launch_local.subprocess, "Popen") as start, patch.object(sys, "argv", ["launch_local.py", "--model", "gemini-3.5-flash-lite"]):
             self.assertEqual(launch_local.main(), 0)
             args = start.call_args.args[0]
-            self.assertEqual(args[-3:], ["--remote", "--model", "gemini-3.5-flash-lite"])
+            self.assertEqual(args[-2:], ["--model", "gemini-3.5-flash-lite"])
             self.assertEqual(args[0], sys.executable)
             self.assertEqual(start.call_args.kwargs["creationflags"], subprocess.CREATE_NO_WINDOW)
             self.assertTrue(Path(args[3]).is_absolute())
 
     def test_ready_environment_continues_to_application(self):
-        with tempfile.TemporaryDirectory() as folder, patch.object(launch_local, "ROOT", Path(folder)), patch("local_mode.instance.is_running", return_value=False), patch("local_mode.setup_state.check_environment", return_value=False), patch("local_mode.cli.main", return_value=0) as run, patch.object(launch_local.subprocess, "Popen") as start, patch.object(sys, "argv", ["launch_local.py", "--remote"]):
+        with tempfile.TemporaryDirectory() as folder, patch.object(launch_local, "ROOT", Path(folder)), patch("local_mode.instance.is_running", return_value=False), patch("local_mode.setup_state.check_environment", return_value=False), patch("local_mode.cli.main", return_value=0) as run, patch.object(launch_local.subprocess, "Popen") as start, patch.object(sys, "argv", ["launch_local.py", "--model", "gemini-3.5-flash-lite"]):
             self.assertEqual(launch_local.main(), 0)
-            run.assert_called_once_with(["--remote"])
+            run.assert_called_once_with(["--model", "gemini-3.5-flash-lite"])
             start.assert_not_called()
 
     def test_two_processes_only_repair_once(self):
@@ -99,7 +99,7 @@ def test_cli_argument_failure_is_reported_after_preserving_usage(tmp_path):
 def test_startup_application_failure_is_logged_and_reported(tmp_path):
     from unittest.mock import Mock
     report = Mock()
-    with patch.object(launch_local, "ROOT", tmp_path), patch("local_mode.instance.is_running", return_value=False), patch("local_mode.setup_state.check_environment", return_value=False), patch("local_mode.cli.main", side_effect=RuntimeError("Owned startup failure")), patch.object(launch_local, "_show_startup_error", report), patch.object(sys, "argv", ["launch_local.py", "--remote"]):
+    with patch.object(launch_local, "ROOT", tmp_path), patch("local_mode.instance.is_running", return_value=False), patch("local_mode.setup_state.check_environment", return_value=False), patch("local_mode.cli.main", side_effect=RuntimeError("Owned startup failure")), patch.object(launch_local, "_show_startup_error", report), patch.object(sys, "argv", ["launch_local.py", "--model", "gemini-3.5-flash-lite"]):
         assert launch_local.main() == 1
     assert "Owned startup failure" in (tmp_path / "data/logs/startup.log").read_text()
     report.assert_called_once_with(tmp_path / "data/logs/startup.log")
@@ -113,13 +113,16 @@ def test_successful_cli_exit_does_not_show_failure(tmp_path):
     report.assert_not_called()
 
 
-def test_remote_runtime_option_reaches_unified_desktop(monkeypatch):
-    import os
-    from types import SimpleNamespace
-    from local_mode import cli
-    settings = SimpleNamespace(model="gemini-3.5-flash-lite", auto_fallback=False)
-    with patch.dict(os.environ), patch.object(cli.Settings, "from_env", return_value=settings), patch("local_mode.desktop_launch.launch", return_value=0) as launch:
-        os.environ.pop("JARVIS_BLUETOOTH", None)
-        assert cli.main(["--remote"]) == 0
-        assert os.environ["JARVIS_BLUETOOTH"] == "1"
-        launch.assert_called_once_with(Path(cli.__file__).resolve().parent.parent)
+def test_retired_remote_startup_option_opens_desktop_without_cli(tmp_path):
+    with patch.object(launch_local, "ROOT", tmp_path), patch("local_mode.instance.is_running", return_value=False), patch("local_mode.setup_state.check_environment", return_value=False), patch("local_mode.desktop_launch.launch", return_value=0) as launch, patch("local_mode.cli.main") as run, patch.object(sys, "argv", ["launch_local.py", "--remote"]):
+        assert launch_local.main() == 0
+        launch.assert_called_once_with(tmp_path)
+        run.assert_not_called()
+
+
+def test_repair_drops_retired_option_but_preserves_other_arguments(tmp_path):
+    with patch.object(launch_local, "ROOT", tmp_path), patch("local_mode.instance.is_running", return_value=False), patch("local_mode.setup_state.check_environment", return_value=True), patch.object(launch_local.subprocess, "Popen") as start, patch.object(sys, "argv", ["launch_local.py", "--remote", "--model", "gemini-3.5-flash-lite"]):
+        assert launch_local.main() == 0
+        arguments = start.call_args.args[0]
+        assert arguments[-2:] == ["--model", "gemini-3.5-flash-lite"]
+        assert "--remote" not in arguments

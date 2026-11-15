@@ -53,6 +53,6 @@ The embedded workspace, native workspace services and terminal control CLI adapt
 | Browser | Chrome extension/token connection and Playwright/CDP automation; see [Browser](docs/BROWSER.md) |
 | MCP | Native `rmcp` client for owned stdio servers and Streamable HTTP, with per-tool policies; see [MCP](docs/MCP.md) |
 | Local inference and speech | Separately installed runtimes and models, including llama.cpp and audio.cpp; see [Models](docs/MODELS.md) and [Speech](docs/SPEECH.md) |
-| Optional remote input | Configured Telegram and Windows BLE services; no Android client is distributed |
+| Optional remote input | Configured Telegram service |
 
 Dependency locks record library versions. [NOTICE.md](NOTICE.md) and [third-party notices](docs/THIRD_PARTY.md) preserve component attribution; runtime, model and hosted-service terms apply separately. The maintained project is [Personal-Stuffs-johnmart19/jarvis](https://github.com/Personal-Stuffs-johnmart19/jarvis).

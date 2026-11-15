@@ -6,7 +6,7 @@ Start with [setup](docs/SETUP.md), the [repository map](docs/ARCHITECTURE.md) an
 
 - `apps/desktop/`: React shell, embedded workspace and Rust host.
 - `local_mode/`, `agent/`, `actions/`, `memory/`, `vision/`: Python service packages. Their established imports support the portable launcher; new shared application services belong in `local_mode`, not new root scripts.
-- `integrations/`: the embedded workspace's terminal CLI packager and checksum manifest. `remote/`: the optional Windows BLE transport; Telegram/BLE startup is owned by `local_mode/remote.py`. No Android app is maintained in this tree.
+- `integrations/`: the embedded workspace's terminal CLI packager and checksum manifest. Configured Telegram startup is owned by `local_mode/remote.py`.
 - `tools/setup/`, `tools/checks/`, `tools/ci/`, `tools/dev/`: provisioning, checks, CI and isolated development dependencies.
 - `tests/python/`, `tests/agent/`, `tests/desktop/`: Python regressions, Node contracts and explicit owned desktop/live probes. Python fixtures remain with their tests; shared desktop fixtures live in `tests/fixtures` when needed.
 - `benchmarks/`: measurements rather than the default regression suite.

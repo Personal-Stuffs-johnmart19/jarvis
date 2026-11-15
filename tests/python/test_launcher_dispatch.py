@@ -66,13 +66,13 @@ def read_event(path):
 
 
 @pytest.mark.parametrize("ready", [False, True])
-def test_start_preserves_remote_and_quoted_arguments_after_cold_setup(launcher_root, ready):
+def test_start_preserves_runtime_and_quoted_arguments_after_cold_setup(launcher_root, ready):
     root, template = launcher_root
     if ready:
         shutil.copytree(template, root / ".venv")
         (root / "data").mkdir()
         (root / "data/setup-complete.txt").write_text("unified-v4\n", encoding="ascii")
-    args = ["--remote", "--model", "gemini-3.5-flash-lite", "--window-title", "Owned window & value!"]
+    args = ["--model", "gemini-3.5-flash-lite", "--language", "ru", "--window-title", "Owned window & value!"]
     result = run_batch(root, "START.cmd", args, environment={"JARVIS_FIXTURE_RUNTIME": str(template)})
     assert result.returncode == 0, result.stdout + result.stderr
     event = read_event(root / "dispatch.json")
@@ -111,7 +111,7 @@ def test_setup_failure_is_reported_without_launching(launcher_root, name, feedba
 
 def test_install_rejects_runtime_arguments_before_setup(launcher_root):
     root, template = launcher_root
-    result = run_batch(root, "INSTALL.cmd", ["--remote"], environment={"JARVIS_FIXTURE_RUNTIME": str(template)})
+    result = run_batch(root, "INSTALL.cmd", ["--model", "gemini-3.5-flash-lite"], environment={"JARVIS_FIXTURE_RUNTIME": str(template)})
     assert result.returncode == 1
     assert "Use START.cmd for runtime options" in result.stdout + result.stderr
     assert not (root / "setup.json").exists()
@@ -150,7 +150,7 @@ def main(args):
     while not (root/"release").exists() and time.monotonic()<deadline: time.sleep(.02)
     return 0
 ''')
-    args = ["--remote", "--model", "gemini-3.5-flash-lite", "--window-title", "Owned title & !"]
+    args = ["--model", "gemini-3.5-flash-lite", "--language", "ru", "--window-title", "Owned title & !"]
     child = None
     try:
         result = run_batch(root, "START.cmd", args, environment={"JARVIS_TELEGRAM_TOKEN": "owned-fixture-token"})

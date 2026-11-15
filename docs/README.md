@@ -17,7 +17,6 @@ Documentation has one English source. Translations belong in application locale 
 | Checks, reviews and releases | [Development](DEVELOPMENT.md) |
 | Remaining work | [Active backlog](ECOSYSTEM_ROADMAP.md) |
 | Published binary and source coverage | [Verification](VERIFICATION_CURRENT.md) |
-| Optional Windows BLE transport | [Bluetooth protocol](PROTOCOL.md); no Android client is distributed |
 | Source provenance and integrations | [Project overview](../README.md#source-and-integrations), [attribution](../NOTICE.md) |
 | Component licenses and model terms | [Third-party notices](THIRD_PARTY.md) |
 

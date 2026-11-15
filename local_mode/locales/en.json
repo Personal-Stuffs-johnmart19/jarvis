@@ -1,4 +1,5 @@
 {
+  "Autostart enabled, sir. Jarvis will launch at login.": "Autostart enabled, sir. Jarvis will launch at login.",
   "Qwen3 speech request failed: {0}": "Qwen3 speech request failed: {0}",
   "Unknown voice. Choose a voice from the list.": "Unknown voice. Choose a voice from the list.",
   "A single worker owns LocalAgent; audio controls do not wait for model requests.": "A single worker owns LocalAgent; audio controls do not wait for model requests.",
@@ -62,7 +63,6 @@
   "List microphone devices": "List microphone devices",
   "Explicit target for the maximize-window command": "Explicit target for the maximize-window command",
   "Keep the process and media session alive until Ctrl+C after one command": "Keep the process and media session alive until Ctrl+C after one command",
-  "Enable Bluetooth for the Android client": "Enable Bluetooth for the Android client",
   "Save the selected model and fallback mode": "Save the selected model and fallback mode",
   "Key saved using Windows DPAPI. It is not committed to Git.": "Key saved using Windows DPAPI. It is not committed to Git.",
   "Model saved: ": "Model saved: ",

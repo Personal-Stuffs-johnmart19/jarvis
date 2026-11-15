@@ -37,14 +37,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--browser", choices=["chrome", "msedge", "chromium"], default=None)
     parser.add_argument("--microphone", type=int, default=None)
     parser.add_argument("--hold", action="store_true", help="Keep the process and media session alive until Ctrl+C after one command")
-    parser.add_argument("--remote", action="store_true", help="Enable the optional Bluetooth client transport")
     parser.add_argument("--language", choices=["en", "ru"], default="en", help="Language for app-owned reports")
     parser.add_argument("--model", choices=MODEL_ORDER, default=None)
     parser.add_argument("--auto-fallback", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--save-model", action="store_true", help="Save the selected model and fallback mode")
     args = parser.parse_args(argv)
-    if args.remote:
-        os.environ["JARVIS_BLUETOOTH"] = "1"
     try:
         settings = Settings.from_env(window_title=args.window_title, browser_channel=args.browser, microphone=args.microphone,
                                      model=args.model, auto_fallback=args.auto_fallback)

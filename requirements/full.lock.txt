@@ -134,9 +134,6 @@ vosk==0.3.45
 websockets==16.1.1
 winotify==1.1.0
 winrt-runtime==4.1.0
-winrt-windows-devices-bluetooth==4!10.0.28000.2705
-winrt-windows-devices-bluetooth-genericattributeprofile==4!10.0.28000.2957
-winrt-windows-devices-enumeration==4!10.0.28000.2705
 winrt-windows-foundation==4!10.0.28000.2957
 winrt-windows-foundation-collections==4!10.0.28000.2957
 winrt-windows-globalization==4!10.0.28000.2957

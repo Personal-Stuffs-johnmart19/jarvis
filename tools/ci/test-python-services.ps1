@@ -72,6 +72,7 @@ $serviceTests = @(
     'tests/python/test_windows_launchers.py'
     'tests/python/test_launcher_dispatch.py'
     'tests/python/local/test_auto_startup.py'
+    'tests/python/local/test_remote_services.py'
     'tests/python/test_browser_playback_start.py'
     'tests/python/test_broker_stream_lifecycle.py'
     'tests/python/test_broker_transport_cancel.py'

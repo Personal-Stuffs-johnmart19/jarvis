@@ -1,4 +1,5 @@
 {
+  "Autostart enabled, sir. Jarvis will launch at login.": "Автозапуск включён, сэр. Jarvis будет запускаться при входе в систему.",
   "Qwen3 speech request failed: {0}": "Не удалось выполнить запрос озвучки Qwen3: {0}",
   "Unknown voice. Choose a voice from the list.": "Неизвестный голос. Выберите озвучку из списка.",
   "A single worker owns LocalAgent; audio controls do not wait for model requests.": "Один worker владеет LocalAgent; управление звуком не ждёт Gemini.",
@@ -62,7 +63,6 @@
   "List microphone devices": "Список устройств микрофона",
   "Explicit target for the maximize-window command": "Явная цель команды развернуть окно",
   "Keep the process and media session alive until Ctrl+C after one command": "Оставить процесс и музыку работать до Ctrl+C после одной команды",
-  "Enable Bluetooth for the Android client": "Включить Bluetooth для исходного Android-клиента",
   "Save the selected model and fallback mode": "Сохранить выбор модели и режима резерва",
   "Key saved using Windows DPAPI. It is not committed to Git.": "Ключ сохранён с помощью Windows DPAPI. Он не добавляется в Git.",
   "Model saved: ": "Модель сохранена: ",

@@ -22,6 +22,6 @@ Offline frontend contracts (462) and TypeScript passed. The cleanup security sca
 
 ## Limits
 
-This acceptance does not re-certify earlier broad tool audits, live models, authenticated providers, personal browser/media, microphone, BLE hardware or OCR activation. Configured integrations and downloaded models need their own bounded execution evidence. [Speech](SPEECH.md) owns CPU/Vulkan and model-asset limits.
+This acceptance does not re-certify earlier broad tool audits, live models, authenticated providers, personal browser/media, microphone or OCR activation. The historical checks above predate removal of the optional BLE transport and do not validate that removal. Configured integrations and downloaded models need their own bounded execution evidence. [Speech](SPEECH.md) owns CPU/Vulkan and model-asset limits.
 
 Synchronous network cancellation remains cooperative; remote MCP cancellation does not promise rollback. URL validation does not pin transport DNS/proxy destinations, and filesystem mutations are not a complete capability sandbox. Other operating systems require separate native GUI/lifecycle verification. Preserve private credentials, chats, models and user data outside the public tree; follow [Security](../SECURITY.md).

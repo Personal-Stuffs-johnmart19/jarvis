@@ -11,7 +11,6 @@ Run: python -m unittest tests.python.test_p0_security -v
 import os
 import sys
 import unittest
-from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -101,45 +100,6 @@ class ExecutorUnknownToolTest(unittest.TestCase):
 
 
 
-
-
-class BridgeTokenTest(unittest.TestCase):
-    def test_auto_provisions_token_when_missing(self):
-        import tempfile
-        import remote.bluetooth_transport as bt
-        tmp = Path(tempfile.mkdtemp())
-        try:
-            old_file = bt.TOKEN_FILE
-            old_env = os.environ.get("JARVIS_BRIDGE_TOKEN")
-            os.environ.pop("JARVIS_BRIDGE_TOKEN", None)
-            bt.TOKEN_FILE = tmp / "bridge_token.txt"
-            token = bt.get_bridge_token()
-            self.assertGreaterEqual(len(token), 16)
-            self.assertTrue((tmp / "bridge_token.txt").exists())
-            # Second call returns the same persisted token.
-            self.assertEqual(token, bt.get_bridge_token())
-            bt.TOKEN_FILE = old_file
-            if old_env is not None:
-                os.environ["JARVIS_BRIDGE_TOKEN"] = old_env
-        finally:
-            import shutil
-            shutil.rmtree(tmp, ignore_errors=True)
-
-    def test_env_token_wins_over_generated(self):
-        import tempfile
-        import remote.bluetooth_transport as bt
-        tmp = Path(tempfile.mkdtemp())
-        old_env = os.environ.get("JARVIS_BRIDGE_TOKEN")
-        try:
-            bt.TOKEN_FILE = tmp / "bridge_token.txt"
-            os.environ["JARVIS_BRIDGE_TOKEN"] = "a" * 40
-            self.assertEqual(bt.get_bridge_token(), "a" * 40)
-            self.assertFalse((tmp / "bridge_token.txt").exists())
-            if old_env is not None:
-                os.environ["JARVIS_BRIDGE_TOKEN"] = old_env
-        finally:
-            import shutil
-            shutil.rmtree(tmp, ignore_errors=True)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 Use **START.cmd** for the desktop. The optional Python CLI has its own supported model/options boundary; it must not be mistaken for the complete desktop provider catalog. See `local_mode/cli.py --help` through the launch wrapper for the current options.
 
-For optional Bluetooth input, run `START.cmd --remote` or set `JARVIS_BLUETOOTH=1` before launching. Telegram continues to use its configured environment/credential settings. These options do not require a separate remote launcher. Use the console route below for interactive input and diagnostic output.
+Telegram uses its configured environment/credential settings. Use the console route below for interactive input and diagnostic output.
 
 ## Commands
 
@@ -34,7 +34,6 @@ For optional Bluetooth input, run `START.cmd --remote` or set `JARVIS_BLUETOOTH=
 | `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `JARVIS_GEMINI_API_KEY` | Provider credentials; never paste values into commands, logs or Git |
 | `JARVIS_BROWSER` | Legacy browser adapter option; Chrome is the supported desktop integration target |
 | `JARVIS_TELEGRAM_TOKEN`, `JARVIS_TELEGRAM_CHAT_ID` | Optional explicitly configured Telegram channel |
-| `JARVIS_BLUETOOTH=1` / CLI `--remote` | Optional Bluetooth transport |
 | `JARVIS_TOOLCHAIN_DIR` | Explicit tool/runtime discovery root |
 
 Secrets use the owning adapter's credential storage; do not move protected settings into chat-specific JSON. User preferences/data remain under `data/` and are not source files.

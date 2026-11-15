@@ -25,6 +25,8 @@ def _show_startup_error(log: Path, detail: str = "") -> None:
 
 
 def main() -> int:
+    # Existing login shortcuts may still carry the retired phone-bridge switch.
+    arguments = [argument for argument in sys.argv[1:] if argument != "--remote"]
     log = ROOT / "data/logs/startup.log"
     try:
         log.parent.mkdir(parents=True, exist_ok=True)
@@ -37,10 +39,9 @@ def main() -> int:
                     from local_mode.setup_state import check_environment
                     if check_environment(ROOT):
                         # Reload .pth files, native libraries and installed packages.
-                        subprocess.Popen([sys.executable, "-X", "utf8", str(ROOT / "launch_local.py"), *sys.argv[1:]],
+                        subprocess.Popen([sys.executable, "-X", "utf8", str(ROOT / "launch_local.py"), *arguments],
                                          cwd=ROOT, creationflags=subprocess.CREATE_NO_WINDOW, close_fds=True)
                         return 0
-                    arguments = sys.argv[1:]
                     if not arguments:
                         from local_mode.desktop_launch import launch
                         code = launch(ROOT)
