@@ -1,27 +1,27 @@
 # Verification and release boundaries
 
-Updated 2026-11-15. Evidence applies to the named source, artifact and exercised paths. See [Development](DEVELOPMENT.md) for checks and [the roadmap](ECOSYSTEM_ROADMAP.md) for remaining work.
+Updated 2026-11-15. Evidence applies to the named source, artifact and exercised paths. See [Development](DEVELOPMENT.md) for focused checks and [the roadmap](ECOSYSTEM_ROADMAP.md) for remaining work.
 
 ## Selected Windows portable
 
-- Build source: `811b98d12082b95845225dceb14b2d63615f9a6e`; `apps/desktop/` tree: `d9269b6eb82fccf73e62ef3da328ac696295a964`.
-- Portable: `jarvis-desktop-8005c6af568e92af1bb98d2ab5d308a737fd44e89c6d8666ac7d0782bff7e28e.exe` (27,311,616 bytes).
-- SHA-256: `8005c6af568e92af1bb98d2ab5d308a737fd44e89c6d8666ac7d0782bff7e28e`.
-- One optimized build completed in 256 seconds. Subsequent release documentation and test-fixture changes do not change embedded application inputs.
-- The previous root portable is retired. The required terminal companion remains `desktop-bin/companions/terax/2e2471fb833e097d/terax-cli.exe`, SHA-256 `2e2471fb833e097d0edd8f0dc525f1dcd02ed0dc3254110acbbb5a871bd8ed51`, with its upstream notices. Python packages, engines and model weights remain separate from the EXE.
+- Build source: `f38b98f64dac213566705099261877fb67d95773`; `apps/desktop/` tree: `252e5d75f67d29c0e311ea254ecb9c93aba17a6f`.
+- Portable: `jarvis-desktop-0b7374c7a8dc561ee4c6b9317998f23dd284c0478a75facb315acf0891484b0d.exe` (27,311,616 bytes).
+- SHA-256: `0b7374c7a8dc561ee4c6b9317998f23dd284c0478a75facb315acf0891484b0d`.
+- One optimized build completed in 262 seconds. Subsequent fixture and release-document changes do not change embedded application inputs.
+- The manifest selects the latest portable. The required terminal companion remains `desktop-bin/companions/terax/2e2471fb833e097d/terax-cli.exe`, SHA-256 `2e2471fb833e097d0edd8f0dc525f1dcd02ed0dc3254110acbbb5a871bd8ed51`, with its upstream notices. Python packages, engines and model weights remain separate.
 
-## Exercised paths
+## Language menu verification
 
-The retired phone transport, sole client abstraction, activation settings, model-facing startup option, BLE protocol documentation and three unused Windows projections are removed. Configured Telegram authorization, queue dispatch and shutdown remain. Old login shortcuts containing `--remote` open the normal desktop; new startup entries omit it. Existing credential-denial rules still protect old private token files.
+Language menus use the theme's paired popup background and foreground. Input overlays such as the default dark theme's translucent white no longer become the menu background. Missing popup overrides fall back to the current mode's defaults; selected, highlighted and indicator text inherit the popup foreground.
 
-Focused offline checks covered Telegram polling and backlog handling, owner authorization, launcher arguments and repair, autostart registration, English/Russian status text, and legacy Windows PowerShell parsing. Agent contracts (462) and TypeScript passed with the current frozen dependencies. The remaining 145 full-install pins resolve identically from the dependency source; no model frameworks were installed for this check. The managed security scan covered 15 changed source files with zero findings. Independent standards and spec reviews approved the cleanup.
+Owned WebView checks covered Jarvis Default and Glass in dark/light modes, with shell, settings-header and embedded pickers. Default palettes, translucent input overlays and palettes omitting popup tokens were exercised in checked and highlighted states. The served matrix passed 72 states; the same packaged EXE covered 72 unique states across two bounded runs, with minimum text contrast **6.86:1** against a **4.5:1** requirement.
 
-[Source quality](https://github.com/Personal-Stuffs-johnmart19/jarvis/actions/runs/43665853178), [Python services](https://github.com/Personal-Stuffs-johnmart19/jarvis/actions/runs/43665853185) and [public-tree/history checks](https://github.com/Personal-Stuffs-johnmart19/jarvis/actions/runs/43665853171) passed at the cleanup source.
+Keyboard navigation, focus restoration, Escape and English/Russian selection with reload persistence passed through all three owners. Both packaged runs had no page errors and closed their owned hosts. The fixture awaits persisted theme ID and mode before reload; its contrast validators and default two-theme coverage remain intact. The earlier geometry-only mode is preserved; unchanged zoom geometry was not repeated for this color fix.
 
-The selected bundled host completed a fresh 4K chat and an approved owned Python command returning 42. Its Activity group and nested action details started collapsed, expanded to show the result, and collapsed again. The accepted run made three synthetic loopback provider requests and had zero page errors; no real model API was called. The fixture uses the canonical displayed action label and preserves the request-count and disclosure assertions. This does not repeat the earlier full language-picker or zoom matrices.
+Offline agent contracts (462), TypeScript and the managed staged source scan passed; the latter covered two changed source files with zero findings. Independent standards and spec reviews approved the source and fixture corrections. [Source quality](https://github.com/Personal-Stuffs-johnmart19/jarvis/actions/runs/43726689985), [Python services](https://github.com/Personal-Stuffs-johnmart19/jarvis/actions/runs/43726690032) and [public-tree/history checks](https://github.com/Personal-Stuffs-johnmart19/jarvis/actions/runs/43726690007) passed at the build source.
 
 ## Limits
 
-This checkpoint does not certify a complete fresh network installation, live Telegram delivery, OCR activation, authenticated providers, personal Chrome/media, microphone, or model quality and performance. Configured integrations and downloaded models need their own bounded execution evidence. [Speech](SPEECH.md) owns CPU/Vulkan and model-asset limits.
+This is focused menu/theme acceptance. It does not re-certify every custom palette, broad chat/tool execution, live providers, personal Chrome/media, microphone, OCR, a fresh network installation, or all GUI/zoom paths. No real model API calls or personal-profile changes were used. Configured integrations and downloaded models need their own bounded evidence; [Speech](SPEECH.md) owns CPU/Vulkan and model-asset limits.
 
-Synchronous network cancellation remains cooperative; remote MCP cancellation does not promise rollback. URL validation does not pin transport DNS/proxy destinations, and filesystem mutations are not a complete capability sandbox. Other operating systems require separate native GUI/lifecycle verification. Preserve private credentials, chats, models and user data outside the public tree; follow [Security](../SECURITY.md).
+Synchronous network cancellation remains cooperative; remote MCP cancellation does not promise rollback. URL validation does not pin transport DNS/proxy destinations, and filesystem mutations are not a complete capability sandbox. Other operating systems require separate native GUI/lifecycle verification. Keep private credentials, chats, models and user data outside the public tree; follow [Security](../SECURITY.md).

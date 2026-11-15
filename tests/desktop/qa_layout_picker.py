@@ -55,20 +55,18 @@ def _picker_surface(page, options, fixture, name):
     return evidence
 
 
-def _picker_contrast_cases(page, fixture):
+def _picker_contrast_cases(page, fixture, theme_ids=('terax-default', 'jarvis-glass')):
     """Use production defaults first; white-alpha inputs must not become white popups."""
     surfaces = []
     page.add_init_script("window.addEventListener('message',event=>{if(event.origin===location.origin&&event.data?.type==='jarvis:theme'&&event.data.id)window.__qaResolvedTheme={id:event.data.id,mode:event.data.mode};});")
     select_language(page, 'en')
-    for theme_id in ('terax-default', 'jarvis-glass'):
-        page.evaluate("""async id=>{const store=await window.__JARVIS_NATIVE__.store.load('terax-settings.json',{defaults:{}});await store.set('themeId',id);await store.save();}""", theme_id)
-        page.reload()
-        page.get_by_role('button', name='Chat', exact=True).wait_for()
-        page.wait_for_function("id=>window.__qaResolvedTheme?.id===id", arg=theme_id)
+    for theme_id in theme_ids:
         for theme in ('dark', 'light'):
-            if page.locator('html').get_attribute('data-theme') != theme:
-                page.get_by_role('button', name='Toggle Light and Dark Theme', exact=True).click()
-            # Reload reinstates production theme-derived colors, without stale test overrides.
+            # Theme preference writes are asynchronous; persist both before reloading.
+            page.evaluate("""async ({id,mode})=>{
+                const store=await window.__JARVIS_NATIVE__.store.load('terax-settings.json',{defaults:{}});
+                await store.set('themeId',id);await store.set('theme',mode);await store.save();
+            }""", {'id':theme_id,'mode':theme})
             page.reload()
             page.get_by_role('button', name='Chat', exact=True).wait_for()
             expect(page.locator('html')).to_have_attribute('data-theme', theme)
