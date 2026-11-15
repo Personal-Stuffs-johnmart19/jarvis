@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Pinned external development apps; kept separate from the Jarvis runtime",
   "devDependencies": {
-    "@babel/parser": "8.1.0",
+    "@babel/parser": "8.1.2",
     "@codacy/analysis-cli": "0.25.0"
   },
   "scripts": {
