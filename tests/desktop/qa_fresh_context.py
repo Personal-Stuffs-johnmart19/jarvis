@@ -38,8 +38,18 @@ def run_fresh_context(page, fixture, reasoning_context=False):
     expect(activity).to_have_attribute('aria-expanded', 'false')
     activity.click()
     expect(activity).to_have_attribute('aria-expanded', 'true')
-    trigger = frame.locator('[data-slot="collapsible-trigger"]').filter(has_text='jarvis_action').first
+    activity_group = activity.locator('xpath=..')
+    # The gateway is presented as its canonical action, not "jarvis_action".
+    trigger = activity_group.locator('[data-slot="collapsible-trigger"]').filter(has_text='run_code')
+    expect(trigger).to_have_count(1)
     expect(trigger).to_have_attribute('aria-expanded', 'false')
+    trigger.click()
+    expect(trigger).to_have_attribute('aria-expanded', 'true')
+    output = activity_group.locator('pre').filter(has_text='42')
+    expect(output).to_be_visible()
+    trigger.click()
+    expect(trigger).to_have_attribute('aria-expanded', 'false')
+    expect(output).not_to_be_visible()
     activity.click()
     expect(activity).to_have_attribute('aria-expanded', 'false')
     endpoint = os.environ['JARVIS_QA_MODEL_BASE'].removesuffix('/v1') + '/qa/fresh-context'

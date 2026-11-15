@@ -1,27 +1,27 @@
 # Verification and release boundaries
 
-Updated 2026-11-14. Evidence applies to the named source, artifact and exercised paths. See [Development](DEVELOPMENT.md) for checks and [the roadmap](ECOSYSTEM_ROADMAP.md) for remaining work.
+Updated 2026-11-15. Evidence applies to the named source, artifact and exercised paths. See [Development](DEVELOPMENT.md) for checks and [the roadmap](ECOSYSTEM_ROADMAP.md) for remaining work.
 
 ## Selected Windows portable
 
-- Build source: `1bf166afc780e85c973199f2731a918246ee37e1`; `apps/desktop/` tree: `05a23cfcf90a670964fa4522e7cee5211a4d0580`.
-- Portable: `jarvis-desktop-1f9eeda874796f6d3bfb8cf0d5f19632e9642a2cc0c235074d8e64d147c09dfa.exe` (27,307,520 bytes).
-- SHA-256: `1f9eeda874796f6d3bfb8cf0d5f19632e9642a2cc0c235074d8e64d147c09dfa`.
-- The optimized native build completed once. Later source `87438ec5c2c0a183ef97f9193db529189c8cfeb1` changes only the external `requirements/full.lock.txt`: the required Imaging/Storage Streams SDK pair and python-dateutil. Embedded application inputs are unchanged; Python dependencies remain separate from the EXE.
-- Embedded Terax revision: `f7bee29d8690aa0afe37ed8b4c94daeb5b0211ad`. Required terminal CLI SHA-256: `2e2471fb833e097d0edd8f0dc525f1dcd02ed0dc3254110acbbb5a871bd8ed51`. Its [manifest](../integrations/companions.json), Apache license and [terminal notices](../third_party/terax/NOTICE.md) remain separate.
+- Build source: `811b98d12082b95845225dceb14b2d63615f9a6e`; `apps/desktop/` tree: `d9269b6eb82fccf73e62ef3da328ac696295a964`.
+- Portable: `jarvis-desktop-8005c6af568e92af1bb98d2ab5d308a737fd44e89c6d8666ac7d0782bff7e28e.exe` (27,311,616 bytes).
+- SHA-256: `8005c6af568e92af1bb98d2ab5d308a737fd44e89c6d8666ac7d0782bff7e28e`.
+- One optimized build completed in 256 seconds. Subsequent release documentation and test-fixture changes do not change embedded application inputs.
+- The previous root portable is retired. The required terminal companion remains `desktop-bin/companions/terax/2e2471fb833e097d/terax-cli.exe`, SHA-256 `2e2471fb833e097d0edd8f0dc525f1dcd02ed0dc3254110acbbb5a871bd8ed51`, with its upstream notices. Python packages, engines and model weights remain separate from the EXE.
 
-## Current acceptance
+## Exercised paths
 
-The owned hidden WebView2 launched this exact portable and verified its bundled assets: 254 byte-identical SHA-256 matches and three HTML documents with full DOM equality after Tauri packaging, covering all 257 frozen assets. No runtime asset-serving overrides were used.
+The retired phone transport, sole client abstraction, activation settings, model-facing startup option, BLE protocol documentation and three unused Windows projections are removed. Configured Telegram authorization, queue dispatch and shutdown remain. Old login shortcuts containing `--remote` open the normal desktop; new startup entries omit it. Existing credential-denial rules still protect old private token files.
 
-Native bootstrap returned the application snapshot/message list. The bundled language-menu sentinel was opaque (alpha 255), topmost and within the viewport; English/Russian selection, Escape and focus restoration passed. Bundled recovery advice names `START.cmd`. There were zero provider POSTs and page errors. Six served shell/settings/embedded dark/light glass cases separately passed before packaging; the bundled run does not claim to repeat all six contexts.
+Focused offline checks covered Telegram polling and backlog handling, owner authorization, launcher arguments and repair, autostart registration, English/Russian status text, and legacy Windows PowerShell parsing. Agent contracts (462) and TypeScript passed with the current frozen dependencies. The remaining 145 full-install pins resolve identically from the dependency source; no model frameworks were installed for this check. The managed security scan covered 15 changed source files with zero findings. Independent standards and spec reviews approved the cleanup.
 
-Launcher checks passed 22 focused cases plus two owned repair/helper lifetime and remote-dispatch cases. Paths containing spaces, `!` and `&`, argument/environment preservation, failure reporting and helper exit were covered. The hidden-process check observed five child chains with zero new visible consoles. No complete installer/download or Explorer console-flash test was performed.
+[Source quality](https://github.com/Personal-Stuffs-johnmart19/jarvis/actions/runs/43665853178), [Python services](https://github.com/Personal-Stuffs-johnmart19/jarvis/actions/runs/43665853185) and [public-tree/history checks](https://github.com/Personal-Stuffs-johnmart19/jarvis/actions/runs/43665853171) passed at the cleanup source.
 
-Offline frontend contracts (462) and TypeScript passed. The cleanup security scan covered 19 source files with zero issues/errors. [Fresh GitHub Python checks](https://github.com/Personal-Stuffs-johnmart19/jarvis/actions/runs/43550891640) passed after the fixture import correction; the [final Python dependency PR check](https://github.com/Personal-Stuffs-johnmart19/jarvis/actions/runs/43552160828) also passed. Exact-head source/Python CI and independent review passed for the four dependency PRs, with focused native MCP fixtures, unused-dependency graph checks and isolated Python namespace/dateutil/Matplotlib checks. No check was disabled to accept the updates.
+The selected bundled host completed a fresh 4K chat and an approved owned Python command returning 42. Its Activity group and nested action details started collapsed, expanded to show the result, and collapsed again. The accepted run made three synthetic loopback provider requests and had zero page errors; no real model API was called. The fixture uses the canonical displayed action label and preserves the request-count and disclosure assertions. This does not repeat the earlier full language-picker or zoom matrices.
 
 ## Limits
 
-This acceptance does not re-certify earlier broad tool audits, live models, authenticated providers, personal browser/media, microphone or OCR activation. The historical checks above predate removal of the optional BLE transport and do not validate that removal. Configured integrations and downloaded models need their own bounded execution evidence. [Speech](SPEECH.md) owns CPU/Vulkan and model-asset limits.
+This checkpoint does not certify a complete fresh network installation, live Telegram delivery, OCR activation, authenticated providers, personal Chrome/media, microphone, or model quality and performance. Configured integrations and downloaded models need their own bounded execution evidence. [Speech](SPEECH.md) owns CPU/Vulkan and model-asset limits.
 
 Synchronous network cancellation remains cooperative; remote MCP cancellation does not promise rollback. URL validation does not pin transport DNS/proxy destinations, and filesystem mutations are not a complete capability sandbox. Other operating systems require separate native GUI/lifecycle verification. Preserve private credentials, chats, models and user data outside the public tree; follow [Security](../SECURITY.md).
