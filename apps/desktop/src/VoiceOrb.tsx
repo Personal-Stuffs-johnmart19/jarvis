@@ -54,10 +54,21 @@ export function VoiceOrb({
       }
       if (energy > 0.005 || level.current > 0.005) {
         id = requestAnimationFrame(frame);
-      } else {
+      } else if (!reduced) {
         timer = window.setTimeout(() => {
-          id = requestAnimationFrame(frame);
-        }, 180);
+          if (level.current > 0.005) {
+            id = requestAnimationFrame(frame);
+          } else {
+            timer = window.setTimeout(pollIdle, 250);
+          }
+        }, 250);
+      }
+    };
+    const pollIdle = () => {
+      if (level.current > 0.005) {
+        id = requestAnimationFrame(frame);
+      } else {
+        timer = window.setTimeout(pollIdle, 250);
       }
     };
     id = requestAnimationFrame(frame);

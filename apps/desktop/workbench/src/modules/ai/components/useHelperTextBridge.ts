@@ -11,22 +11,35 @@ import { t } from "../../../../../src/localization";
 
 /** Keys and endpoint configuration stay here; only the opaque route crosses IPC. */
 export function useHelperTextBridge(owner: string, session: string, _status?: string) {
-  const state = useChatStore();
-  const prefs = usePreferencesStore();
+  const selectedModelId = useChatStore((s) => s.selectedModelId);
+  const apiKeys = useChatStore((s) => s.apiKeys);
+  const customEndpointKeys = useChatStore((s) => s.customEndpointKeys);
+  const lmstudioBaseURL = usePreferencesStore((s) => s.lmstudioBaseURL);
+  const lmstudioModelId = usePreferencesStore((s) => s.lmstudioModelId);
+  const mlxBaseURL = usePreferencesStore((s) => s.mlxBaseURL);
+  const mlxModelId = usePreferencesStore((s) => s.mlxModelId);
+  const ollamaBaseURL = usePreferencesStore((s) => s.ollamaBaseURL);
+  const ollamaModelId = usePreferencesStore((s) => s.ollamaModelId);
+  const openaiCompatibleBaseURL = usePreferencesStore((s) => s.openaiCompatibleBaseURL);
+  const openaiCompatibleModelId = usePreferencesStore((s) => s.openaiCompatibleModelId);
+  const openaiCompatibleContextLimit = usePreferencesStore((s) => s.openaiCompatibleContextLimit);
+  const openrouterModelId = usePreferencesStore((s) => s.openrouterModelId);
+  const customEndpoints = usePreferencesStore((s) => s.customEndpoints);
+  const lmstudioReasoning = usePreferencesStore((s) => s.lmstudioReasoning);
   const snapshot = useMemo(() => ({
-    modelId: state.selectedModelId, keys: state.apiKeys,
+    modelId: selectedModelId, keys: apiKeys,
     local: {
-      lmstudioBaseURL: prefs.lmstudioBaseURL, lmstudioModelId: prefs.lmstudioModelId,
-      mlxBaseURL: prefs.mlxBaseURL, mlxModelId: prefs.mlxModelId,
-      ollamaBaseURL: prefs.ollamaBaseURL, ollamaModelId: prefs.ollamaModelId,
-      openaiCompatibleBaseURL: prefs.openaiCompatibleBaseURL, openaiCompatibleModelId: prefs.openaiCompatibleModelId,
-      openaiCompatibleContextLimit: prefs.openaiCompatibleContextLimit, openrouterModelId: prefs.openrouterModelId,
-      customEndpoints: prefs.customEndpoints, customEndpointKeys: state.customEndpointKeys,
+      lmstudioBaseURL, lmstudioModelId,
+      mlxBaseURL, mlxModelId,
+      ollamaBaseURL, ollamaModelId,
+      openaiCompatibleBaseURL, openaiCompatibleModelId,
+      openaiCompatibleContextLimit, openrouterModelId,
+      customEndpoints, customEndpointKeys,
     },
-    reasoning: prefs.lmstudioReasoning,
-  }), [state.selectedModelId, state.apiKeys, state.customEndpointKeys, prefs.lmstudioBaseURL, prefs.lmstudioModelId,
-    prefs.mlxBaseURL, prefs.mlxModelId, prefs.ollamaBaseURL, prefs.ollamaModelId, prefs.openaiCompatibleBaseURL,
-    prefs.openaiCompatibleModelId, prefs.openaiCompatibleContextLimit, prefs.openrouterModelId, prefs.customEndpoints, prefs.lmstudioReasoning]);
+    reasoning: lmstudioReasoning,
+  }), [selectedModelId, apiKeys, customEndpointKeys, lmstudioBaseURL, lmstudioModelId,
+    mlxBaseURL, mlxModelId, ollamaBaseURL, ollamaModelId, openaiCompatibleBaseURL,
+    openaiCompatibleModelId, openaiCompatibleContextLimit, openrouterModelId, customEndpoints, lmstudioReasoning]);
   const route = useMemo(() => crypto.randomUUID(), [snapshot]);
   const runner = useMemo(() => new HelperTextRunner({
     context: signal => configuredModelContextLimit(snapshot.modelId, snapshot.local, signal),

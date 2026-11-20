@@ -209,17 +209,22 @@ function App() {
       }
       if (
         event.event === "result" &&
-        data.result.setup_kind?.startsWith("chrome")
+        data?.result?.setup_kind?.startsWith("chrome")
       )
         setTab("Browser");
     })
       .then(async (un) => {
+        if (!alive) {
+          un();
+          return;
+        }
         off = un;
         await refresh();
+        if (!alive) return;
         const saved = await run<SuggestionCatalog>("suggestions.catalog");
         if (saved && alive) setHints(saved.items);
       })
-      .catch((e) => setError(displayError(e)));
+      .catch((e) => { if (alive) setError(displayError(e)); });
     const timer = setInterval(() => {
       if (performance.now() - lastLevel.current > 350) level.current = 0;
     }, 100);

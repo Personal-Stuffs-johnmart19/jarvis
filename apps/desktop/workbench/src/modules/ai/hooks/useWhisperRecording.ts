@@ -77,7 +77,7 @@ export function useWhisperRecording({
       void invoke("backend", {
         method: "control",
         params: { action: "cancel_listen" },
-      });
+      }).catch(() => {});
       return;
     }
     const rec = recRef.current;
@@ -158,8 +158,20 @@ export function useWhisperRecording({
         void invoke("backend", {
           method: "control",
           params: { action: "cancel_listen" },
-        });
-      recRef.current?.stop();
+        }).catch(() => {});
+      const rec = recRef.current;
+      if (rec) {
+        rec.onstop = null;
+        rec.ondataavailable = null;
+        if (rec.state !== "inactive") {
+          try {
+            rec.stop();
+          } catch {
+            /* already stopped */
+          }
+        }
+        recRef.current = null;
+      }
       teardownStream();
     };
   }, []);

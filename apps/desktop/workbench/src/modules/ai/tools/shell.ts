@@ -12,6 +12,16 @@ import { currentWorkspaceEnv, workspaceScopeKey } from "@/modules/workspace";
  */
 const sessionShells = new Map<string, Promise<number>>();
 
+export function closeSessionShells(sessionId: string): void {
+  const prefix = `${sessionId}:`;
+  for (const [key, pending] of sessionShells.entries()) {
+    if (key === sessionId || key.startsWith(prefix)) {
+      sessionShells.delete(key);
+      void pending.then((id) => native.shellSessionClose(id)).catch(() => {});
+    }
+  }
+}
+
 async function getSessionShell(
   sessionId: string,
   cwd: string | null,

@@ -1,7 +1,6 @@
 import { countMessage } from "../../../../src/localization";
 import { toolPresentation } from "@/modules/ai/lib/toolPresentation";
 import { useLocale } from "../../../../src/i18n";
-"use client";
 import { t as translateMessage } from "../../../../src/localization";
 
 import {
@@ -95,17 +94,19 @@ function deriveSummary(toolName: string, input: unknown): string | null {
       return str("command");
     case "bash_logs":
     case "bash_kill":
-      return str("id");
+      return typeof i.handle === "number" || typeof i.handle === "string"
+        ? `#${i.handle}`
+        : str("id");
     case "grep":
       return str("pattern") ?? str("query");
     case "glob":
       return str("pattern");
     case "suggest_command":
-      return str("intent") ?? str("description");
+      return str("command") ?? str("explanation") ?? str("intent") ?? str("description");
     case "open_preview":
       return str("path") ?? str("url");
     case "run_subagent":
-      return str("agent") ?? str("task");
+      return str("description") ?? str("type") ?? str("prompt") ?? str("agent") ?? str("task");
     case "todo_write": {
       const items = Array.isArray(i.todos) ? i.todos : null;
       return items
@@ -535,11 +536,15 @@ function renderToolOutput(toolName: string, output: unknown): ReactNode | null {
   }
 
   if (toolName === "glob") {
-    const matches = Array.isArray(o.matches)
-      ? (o.matches as string[])
-      : Array.isArray(o.paths)
-        ? (o.paths as string[])
-        : [];
+    const matches = Array.isArray(o.hits)
+      ? (o.hits as Array<string | { path?: string; rel?: string }>)
+          .map((h) => (typeof h === "string" ? h : h?.rel ?? h?.path ?? ""))
+          .filter(Boolean)
+      : Array.isArray(o.matches)
+        ? (o.matches as string[])
+        : Array.isArray(o.paths)
+          ? (o.paths as string[])
+          : [];
     if (matches.length === 0) {
       return (
         <div className="text-[11px] italic text-muted-foreground">{translateMessage("no matches")}</div>
@@ -595,7 +600,10 @@ function renderToolOutput(toolName: string, output: unknown): ReactNode | null {
   }
 
   if (toolName === "bash_background") {
-    const handle = typeof o.handle === "string" ? o.handle : null;
+    const handle =
+      typeof o.handle === "number" || typeof o.handle === "string"
+        ? String(o.handle)
+        : null;
     const cmd = typeof o.command === "string" ? o.command : "";
     return (
       <div className="space-y-0.5 font-mono text-[11px]">

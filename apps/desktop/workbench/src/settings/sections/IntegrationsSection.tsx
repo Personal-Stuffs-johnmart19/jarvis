@@ -87,7 +87,13 @@ export function IntegrationsSection() {
     const latest = await invoke<McpConfig>("mcp_config_get");
     const next = replaceServer(latest, compiled.server);
     await invoke("mcp_config_validate", { config: next });
-    for (const secret of compiled.writes) await invoke("secrets_set", secret);
+    for (const secret of compiled.writes) {
+      await invoke("secrets_set", {
+        service: secret.service,
+        account: secret.account,
+        password: secret.value,
+      });
+    }
     await invoke("mcp_config_save", { config: next });
     if (mounted.current) {
       setDraft(null);

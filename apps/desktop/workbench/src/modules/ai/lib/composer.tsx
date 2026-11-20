@@ -241,6 +241,7 @@ export function AiComposerProvider({ children }: ProviderProps) {
       const outcome = tryRunSlashCommand(commandSource);
       if (outcome.kind === "handled") {
         setValue("");
+        setPickedCommands([]);
         if (outcome.toast) console.info(outcome.toast);
         return;
       }

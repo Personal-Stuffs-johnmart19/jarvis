@@ -1,5 +1,5 @@
 import "./i18n.css";
-import { useId, useSyncExternalStore } from "react";
+import { useEffect, useId, useSyncExternalStore } from "react";
 import { Select } from "radix-ui";
 import { getLocale, isLocale, localeDefinitions, supportedLocales, localeKey, setLocale, t, translate } from "./localization";
 
@@ -20,7 +20,9 @@ export function useLocale() {
     getLocale,
     () => "en" as const,
   );
-  document.documentElement.lang = locale;
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
   return locale;
 }
 export function LanguagePicker() {

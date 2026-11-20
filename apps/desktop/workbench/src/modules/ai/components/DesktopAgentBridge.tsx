@@ -45,7 +45,7 @@ export function DesktopAgentBridge({ chat }: { chat: Chat<UIMessage> }) {
       busy: status === "submitted" || status === "streaming" || approval,
       approval,
     }).catch(console.error);
-  }, [status, approval]);
+  }, [status, approval, owner]);
   const mirror = useRef({
     payload: "[]",
     sent: "",
@@ -119,6 +119,13 @@ export function DesktopAgentBridge({ chat }: { chat: Chat<UIMessage> }) {
         if (disposed) return;
         if (payload.event === "agent.stop") {
           pending.current = null;
+          for (const message of chat.messages) {
+            for (const part of message.parts) {
+              if ("state" in part && part.state === "approval-requested" && "approval" in part && part.approval?.id) {
+                useChatStore.getState().respondToApproval(part.approval.id, false);
+              }
+            }
+          }
           revokePendingActions();
           void chat.stop();
           return;
@@ -196,17 +203,21 @@ export function DesktopAgentBridge({ chat }: { chat: Chat<UIMessage> }) {
   }, [model, chat, owner, route,workspaceScope]);
   // UI-origin turns use the same speech service as voice-origin turns. A lease
   // prevents replay after F9, a session switch, or an old restored conversation.
-  const uiRun = useRef<{id:string; start:number; begin:Promise<unknown>} | null>(null);
+  const uiRun = useRef<{id:string; start:number; begin:Promise<unknown>; owner:string; session:string} | null>(null);
   useEffect(() => {
+    const existing = uiRun.current;
+    if (existing && (existing.owner !== owner || existing.session !== chat.id)) {
+      uiRun.current = null;
+    }
     if ((status === "submitted" || status === "streaming") && !pending.current && !uiRun.current) {
       const id = crypto.randomUUID();
-      uiRun.current = {id, start:Math.max(0, chat.messages.map(m=>m.role).lastIndexOf("user")), begin:rpc("agent.ui_speech", {owner,session:chat.id,run:id,phase:"begin"}).catch(console.error)};
+      uiRun.current = {id, start:Math.max(0, chat.messages.map(m=>m.role).lastIndexOf("user")), owner, session:chat.id, begin:rpc("agent.ui_speech", {owner,session:chat.id,run:id,phase:"begin"}).catch(console.error)};
     }
     const run = uiRun.current;
     if (!run || status === "submitted" || status === "streaming" || approval) return;
     uiRun.current = null;
     const text = status === "error" ? "" : assistantReply(messages.slice(run.start)).slice(0,12000);
-    void run.begin.then(()=>rpc("agent.ui_speech", {owner,session:chat.id,run:run.id,phase:"end",text})).catch(console.error);
+    void run.begin.then(()=>rpc("agent.ui_speech", {owner:run.owner,session:run.session,run:run.id,phase:"end",text})).catch(console.error);
   }, [status, messages, approval, chat, owner]);
   useEffect(() => {
     const request = pending.current;

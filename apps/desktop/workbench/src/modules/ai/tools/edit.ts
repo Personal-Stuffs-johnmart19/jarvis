@@ -47,10 +47,6 @@ async function applyEdits(
     if (e.replace_all) {
       const before = content;
       content = content.split(e.old_string).join(e.new_string);
-      const occurrences =
-        (before.length - content.length) /
-          (e.old_string.length - e.new_string.length || 1) || 0;
-      // Recover count via direct search to avoid divide-by-zero edge cases.
       let n = 0;
       let i = 0;
       while ((i = before.indexOf(e.old_string, i)) !== -1) {
@@ -64,7 +60,6 @@ async function applyEdits(
         };
       }
       totalReplacements += n;
-      void occurrences;
     } else {
       const first = content.indexOf(e.old_string);
       if (first === -1) {

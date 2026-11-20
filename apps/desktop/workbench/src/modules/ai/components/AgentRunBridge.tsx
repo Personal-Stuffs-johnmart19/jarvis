@@ -1,4 +1,5 @@
 import { createApprovalResponder } from "../lib/approvalResponse";
+import { toolPresentation } from "../lib/toolPresentation";
 import { DesktopAgentBridge } from "./DesktopAgentBridge";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import type { ToolUIPart, UIMessagePart } from "ai";
@@ -151,15 +152,9 @@ function Bridge({ sessionId, openAiDiffTab, closeAiDiffTab }: BridgeProps) {
     for (const m of messages) {
       if (m.role !== "assistant") continue;
       for (const p of m.parts as AnyPart[]) {
-        const t = (p as { type?: string }).type;
-        if (
-          t === "tool-write_file" ||
-          t === "tool-edit" ||
-          t === "tool-multi_edit"
-        ) {
-          const state = (p as { state?: string }).state ?? "";
-          const id = (p as { approval?: { id?: string } }).approval?.id ?? "";
-          fp += `${id}:${state}|`;
+        const mut = extractFileMutation(p);
+        if (mut) {
+          fp += `${mut.approvalId ?? ""}:${mut.state}|`;
         }
       }
     }
@@ -276,20 +271,33 @@ type FileMutation =
     };
 
 function extractFileMutation(part: AnyPart): FileMutation | null {
-  const type = (part as { type?: string }).type;
+  const rawType = (part as { type?: string }).type;
   const p = part as ToolPartLike;
   const state = (p as { state?: string }).state ?? "";
   const approvalId = p.approval?.id ?? null;
 
-  if (type === "tool-write_file") {
-    const input = (p.input ?? {}) as WriteFileInput;
+  let toolName =
+    rawType === "dynamic-tool"
+      ? (p as { toolName?: string }).toolName ?? ""
+      : rawType?.startsWith("tool-")
+        ? rawType.slice(5)
+        : "";
+  let resolvedInput: unknown = p.input;
+  if (toolName === "jarvis_action") {
+    const unwrapped = toolPresentation(toolName, p.input);
+    toolName = unwrapped.name;
+    resolvedInput = unwrapped.input;
+  }
+
+  if (toolName === "write_file") {
+    const input = (resolvedInput ?? {}) as WriteFileInput;
     const path = typeof input.path === "string" ? input.path : "";
     const content = typeof input.content === "string" ? input.content : "";
     if (!path) return null;
     return { state, approvalId, path, derive: { kind: "literal", content } };
   }
-  if (type === "tool-edit") {
-    const input = (p.input ?? {}) as {
+  if (toolName === "edit") {
+    const input = (resolvedInput ?? {}) as {
       path?: unknown;
       old_string?: unknown;
       new_string?: unknown;
@@ -315,8 +323,8 @@ function extractFileMutation(part: AnyPart): FileMutation | null {
       },
     };
   }
-  if (type === "tool-multi_edit") {
-    const input = (p.input ?? {}) as { path?: unknown; edits?: unknown };
+  if (toolName === "multi_edit") {
+    const input = (resolvedInput ?? {}) as { path?: unknown; edits?: unknown };
     const path = typeof input.path === "string" ? input.path : "";
     if (!path || !Array.isArray(input.edits)) return null;
     const edits: EditOp[] = (input.edits as Record<string, unknown>[])

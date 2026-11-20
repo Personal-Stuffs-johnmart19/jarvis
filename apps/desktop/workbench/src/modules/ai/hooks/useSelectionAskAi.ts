@@ -29,8 +29,16 @@ export function useSelectionAskAi({
       );
     };
 
+    let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+    const clearPending = () => {
+      if (pendingTimer !== null) {
+        clearTimeout(pendingTimer);
+        pendingTimer = null;
+      }
+    };
     const onDown = (e: MouseEvent) => {
       if (isInsideAi(e.target)) return;
+      clearPending();
       setAskPopup(null);
     };
     const onUp = (e: MouseEvent) => {
@@ -40,7 +48,9 @@ export function useSelectionAskAi({
         isTerminalSurfaceTarget(e.target) || el?.closest?.(".cm-editor");
       if (!inContentArea) return;
       // Defer one tick so the terminal and CodeMirror finalize the selection.
-      setTimeout(() => {
+      clearPending();
+      pendingTimer = setTimeout(() => {
+        pendingTimer = null;
         const text = captureActiveSelection();
         if (text && text.trim().length > 0) {
           setAskPopup({ x: e.clientX, y: e.clientY });
@@ -53,6 +63,7 @@ export function useSelectionAskAi({
     document.addEventListener("mousedown", onDown);
     document.addEventListener("mouseup", onUp);
     return () => {
+      clearPending();
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("mouseup", onUp);
     };

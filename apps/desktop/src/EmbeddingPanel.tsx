@@ -412,7 +412,7 @@ export function EmbeddingPanel({ run }: Props) {
       </button>
       {result && (
         <p role="status">
-          {result.model}: {result.dimensions}
+          {result.model}: {result.dimensions}{" "}
           {t("dimensions,")} {result.input_tokens ?? "—"} {t("input tokens.")}{" "}
           {result.device &&
             t("Device: {0}.", result.device === "none" ? "CPU" : result.device)}

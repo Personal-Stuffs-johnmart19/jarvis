@@ -470,9 +470,6 @@ export function ModelDropdown() {
       <DropdownMenuContent
         align="end"
         className="w-[28rem] p-0 overflow-hidden rounded-xl border border-border/70 shadow-xl"
-        onFocusCapture={(e) => {
-          if (e.target !== inputRef.current) inputRef.current?.focus();
-        }}
       >
         {/* Search */}
         <div className="flex items-center gap-2.5 border-b border-border/70 px-3 py-2.5">

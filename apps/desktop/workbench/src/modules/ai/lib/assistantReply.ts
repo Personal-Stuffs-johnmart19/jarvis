@@ -24,8 +24,12 @@ export function assistantReply(messages: UIMessage[]): string {
         return "Failed to execute action. Error details are available in the workspace.";
       if (part.state !== "output-available" || !("output" in part)) continue;
       const output = part.output;
-      const name = part.type === "dynamic-tool" && "toolName" in part
+      const rawName = part.type === "dynamic-tool" && "toolName" in part
         ? part.toolName : part.type.slice(5);
+      const rawInput = "input" in part && part.input && typeof part.input === "object" && !Array.isArray(part.input)
+        ? (part.input as Record<string, unknown>) : null;
+      const name = rawName === "jarvis_action" && typeof rawInput?.name === "string" && rawInput.name.trim()
+        ? rawInput.name : rawName;
       if (name === "todo_write" && output && typeof output === "object" &&
           (output as Record<string, unknown>).ok === true) {
         fallback ||= "The tool has finished working. Result details are available in the workspace.";

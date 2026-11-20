@@ -1,5 +1,5 @@
 "use client";
-import { t as translateMessage } from "../../../../src/localization";
+import { getLocale, t as translateMessage } from "../../../../src/localization";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -60,8 +60,9 @@ export const Context = ({
 const ContextIcon = () => {
   const { usedTokens, maxTokens } = useContextValue();
   const circumference = 2 * Math.PI * ICON_RADIUS;
-  const usedPercent = usedTokens / maxTokens;
-  const dashOffset = circumference * (1 - usedPercent);
+  const rawPercent = maxTokens > 0 ? usedTokens / maxTokens : 0;
+  const clampedPercent = Math.min(1, Math.max(0, rawPercent));
+  const dashOffset = circumference * (1 - clampedPercent);
 
   return (
     <svg
@@ -102,8 +103,8 @@ export type ContextTriggerProps = ComponentProps<typeof Button> & { labelPrefix?
 
 export const ContextTrigger = ({ children, labelPrefix = "", pending = false, ...props }: ContextTriggerProps) => {
   const { usedTokens, maxTokens } = useContextValue();
-  const usedPercent = usedTokens / maxTokens;
-  const renderedPercent = new Intl.NumberFormat("en-US", {
+  const usedPercent = maxTokens > 0 ? Math.max(0, usedTokens / maxTokens) : 0;
+  const renderedPercent = new Intl.NumberFormat(getLocale(), {
     maximumFractionDigits: 1,
     style: "percent",
   }).format(usedPercent);
@@ -142,15 +143,16 @@ export const ContextContentHeader = ({
   ...props
 }: ContextContentHeaderProps) => {
   const { usedTokens, maxTokens } = useContextValue();
-  const usedPercent = usedTokens / maxTokens;
-  const displayPct = new Intl.NumberFormat("en-US", {
+  const usedPercent = maxTokens > 0 ? Math.max(0, usedTokens / maxTokens) : 0;
+  const locale = getLocale();
+  const displayPct = new Intl.NumberFormat(locale, {
     maximumFractionDigits: 1,
     style: "percent",
   }).format(usedPercent);
-  const used = new Intl.NumberFormat("en-US", {
+  const used = new Intl.NumberFormat(locale, {
     notation: "compact",
   }).format(usedTokens);
-  const total = new Intl.NumberFormat("en-US", {
+  const total = new Intl.NumberFormat(locale, {
     notation: "compact",
   }).format(maxTokens);
 
@@ -165,7 +167,7 @@ export const ContextContentHeader = ({
             </p>
           </div>
           <div className="space-y-2">
-            <Progress className="bg-muted" value={usedPercent * PERCENT_MAX} />
+            <Progress className="bg-muted" value={Math.min(PERCENT_MAX, usedPercent * PERCENT_MAX)} />
           </div>
         </>
       )}

@@ -54,8 +54,8 @@ export function ApiUsagePanel({ run }: Props) {
     <section className="api-usage" aria-label={t("Gemini API Usage")}>
       <h3> {t("API Usage")}</h3>
       <p className="note">
-        {t("Local SDK attempts for")}
-        {usage?.day_utc || t("today")}
+        {t("Local SDK attempts for")}{" "}
+        {usage?.day_utc || t("today")}{" "}
         {t(
           "(UTC). These are Jarvis counters, not the remaining project quota. Retries are counted separately. Tokens are shown only when Google metadata is available.",
         )}

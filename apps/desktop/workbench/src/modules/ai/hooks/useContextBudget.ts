@@ -20,33 +20,49 @@ import { useSharedModelContext } from "./useSharedContextLimit";
 type Estimate = ReturnType<typeof contextBudgetEstimate> & { fixedInstructionsFull: boolean };
 /** Read-only preflight. Existing chat handlers and cached schemas are shared with the guard. */
 export function useContextBudget(messages: UIMessage[]) {
-  const chat = useChatStore();
-  const prefs = usePreferencesStore();
-  const agents = useAgentsStore();
+  const selectedModelId = useChatStore((s) => s.selectedModelId);
+  const activeSessionId = useChatStore((s) => s.activeSessionId);
+  const apiKeys = useChatStore((s) => s.apiKeys);
+  const customEndpointKeys = useChatStore((s) => s.customEndpointKeys);
+  const liveAccessors = useChatStore((s) => s.live);
+  const lmstudioBaseURL = usePreferencesStore((s) => s.lmstudioBaseURL);
+  const lmstudioModelId = usePreferencesStore((s) => s.lmstudioModelId);
+  const mlxBaseURL = usePreferencesStore((s) => s.mlxBaseURL);
+  const mlxModelId = usePreferencesStore((s) => s.mlxModelId);
+  const ollamaBaseURL = usePreferencesStore((s) => s.ollamaBaseURL);
+  const ollamaModelId = usePreferencesStore((s) => s.ollamaModelId);
+  const openaiCompatibleBaseURL = usePreferencesStore((s) => s.openaiCompatibleBaseURL);
+  const openaiCompatibleModelId = usePreferencesStore((s) => s.openaiCompatibleModelId);
+  const openaiCompatibleContextLimit = usePreferencesStore((s) => s.openaiCompatibleContextLimit);
+  const openrouterModelId = usePreferencesStore((s) => s.openrouterModelId);
+  const customEndpoints = usePreferencesStore((s) => s.customEndpoints);
+  const customInstructions = usePreferencesStore((s) => s.customInstructions);
+  const activeAgentId = useAgentsStore((s) => s.activeId);
+  const customAgents = useAgentsStore((s) => s.customAgents);
   const planMode = usePlanStore(state => state.active);
   const { contextLimit, supportsVision } = useSharedModelContext();
-  const persona = [...BUILTIN_AGENTS, ...agents.customAgents].find(agent => agent.id === agents.activeId) ?? BUILTIN_AGENTS[0];
-  const live = { workspaceRoot: chat.live.getWorkspaceRoot(), cwd: chat.live.getCwd(),
-    activeFile: chat.live.getActiveFile(), terminalPrivate: chat.live.isActiveTerminalPrivate(), activeEditor: chat.live.getActiveEditor?.() ?? null };
-  const key = contextBudgetKey(chat.selectedModelId, [chat.activeSessionId, chat.apiKeys, chat.customEndpointKeys,
-    prefs.lmstudioBaseURL, prefs.lmstudioModelId, prefs.mlxBaseURL, prefs.mlxModelId,
-    prefs.ollamaBaseURL, prefs.ollamaModelId, prefs.openaiCompatibleBaseURL, prefs.openaiCompatibleModelId,
-    prefs.openaiCompatibleContextLimit, prefs.openrouterModelId, prefs.customEndpoints,
-    prefs.customInstructions, persona.name, persona.instructions, planMode, live, contextLimit, supportsVision]);
+  const persona = [...BUILTIN_AGENTS, ...customAgents].find(agent => agent.id === activeAgentId) ?? BUILTIN_AGENTS[0];
+  const live = { workspaceRoot: liveAccessors.getWorkspaceRoot(), cwd: liveAccessors.getCwd(),
+    activeFile: liveAccessors.getActiveFile(), terminalPrivate: liveAccessors.isActiveTerminalPrivate(), activeEditor: liveAccessors.getActiveEditor?.() ?? null };
+  const key = contextBudgetKey(selectedModelId, [activeSessionId, apiKeys, customEndpointKeys,
+    lmstudioBaseURL, lmstudioModelId, mlxBaseURL, mlxModelId,
+    ollamaBaseURL, ollamaModelId, openaiCompatibleBaseURL, openaiCompatibleModelId,
+    openaiCompatibleContextLimit, openrouterModelId, customEndpoints,
+    customInstructions, persona.name, persona.instructions, planMode, live, contextLimit, supportsVision]);
   const [result, setResult] = useState<{key:string;value:Estimate}>();
   useEffect(() => {
     let active = true;
     const timer = setTimeout(() => { void (async () => {
-      const session = chat.activeSessionId;
+      const session = activeSessionId;
       if (!session) return;
-      const info = resolveModel(chat.selectedModelId, prefs.customEndpoints);
-      const captureAllowed = supportsVision && localCaptureBase(info.provider, prefs.lmstudioBaseURL) !== null;
+      const info = resolveModel(selectedModelId, customEndpoints);
+      const captureAllowed = supportsVision && localCaptureBase(info.provider, lmstudioBaseURL) !== null;
       const baseTools = getChatBudgetTools(session);
-      const tools = budgetBrowserObservations({ ...baseTools, ...(captureAllowed ? buildScreenTools(session, true) : {}) }, contextLimit);
+      const tools = budgetBrowserObservations({ ...baseTools, ...buildScreenTools(session, captureAllowed) }, contextLimit);
       const projectMemory = await readProjectMemory(live.workspaceRoot);
-      const budget = await prepareAgentBudget({ modelId: chat.selectedModelId, contextLimit, tools, owner: baseTools,
-        persona, customInstructions: prefs.customInstructions, projectMemory, planMode });
-      const projectedMessages = await projectRequestMessages(messages, live, chat.selectedModelId, prefs.lmstudioBaseURL);
+      const budget = await prepareAgentBudget({ modelId: selectedModelId, contextLimit, tools, owner: baseTools,
+        persona, customInstructions, projectMemory, planMode });
+      const projectedMessages = await projectRequestMessages(messages, live, selectedModelId, lmstudioBaseURL);
       const projected = await convertToModelMessages(projectInterruptedHistory(projectedMessages), {tools});
       const pruned = pruneMessages({ messages: restrictScreenHistory(projected, captureAllowed),
         reasoning: modelKeepsReasoning(info) ? "none" : "before-last-message", emptyMessages: "remove" });

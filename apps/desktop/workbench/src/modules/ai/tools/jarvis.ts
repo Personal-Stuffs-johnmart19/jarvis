@@ -188,8 +188,10 @@ export function buildJarvisTools(local: ToolSet = {}, publishWorkspace = true) {
             error: receipt.error,
             hint: "Use jarvis_catalog to discover the exact name and parameters, then request the action again. No action was executed.",
           };
-        if (receipt.kind === "backend")
+        if (receipt.kind === "backend") {
+          options.abortSignal?.throwIfAborted();
           return rpc("agent.execute", { token: receipt.token });
+        }
         if (
           !receipt.required &&
           !isQueuedMcp(receipt.action) &&

@@ -1,5 +1,6 @@
 import { stopOnUnavailableToolCall, stopOnRepeatedInvalidToolCall } from "./errors";
 import { t } from "../../../../../src/localization";
+import { toolPresentation } from "./toolPresentation";
 import { FIXED_INSTRUCTIONS_FULL_MESSAGE, prepareAgentBudget } from "./agentBudget";
 import { budgetBrowserObservations } from "./browserObservation";
 import { buildScreenTools } from "../tools/screen";
@@ -510,11 +511,12 @@ export async function runAgentStream(opts: RunAgentOptions) {
       if (opts.onStep) {
         const last = step.toolCalls?.[step.toolCalls.length - 1];
         if (last) {
-          const label = TOOL_LABELS[last.toolName];
+          const presented = toolPresentation(last.toolName, last.input);
+          const label = TOOL_LABELS[presented.name];
           opts.onStep(
             label
-              ? label((last.input ?? {}) as Record<string, unknown>)
-              : `Calling ${last.toolName}`,
+              ? label((presented.input ?? {}) as Record<string, unknown>)
+              : `Calling ${presented.name}`,
           );
         } else if (step.text) {
           opts.onStep("Writing");

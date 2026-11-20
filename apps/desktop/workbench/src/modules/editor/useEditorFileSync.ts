@@ -87,6 +87,18 @@ export function useEditorFileSync({ tabs, tabsRef, editorRefs }: Params) {
   }, [tabs]);
 
   useEffect(() => {
+    return () => {
+      const dirs = [...editorWatchRef.current];
+      const files = [...editorFilesRef.current];
+      if (dirs.length > 0 || files.length > 0) {
+        watchRemove(dirs, files);
+        editorWatchRef.current = new Set();
+        editorFilesRef.current = new Set();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     let alive = true;
     let unlisten: (() => void) | undefined;
     void listenFsChanged((paths) => {

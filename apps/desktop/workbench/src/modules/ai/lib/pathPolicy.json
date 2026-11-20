@@ -63,6 +63,7 @@
   ],
   "secretPathPatterns": [
     "(?:^|/)config/bridge_token\\.(?:txt|json)(?:[.\\s:_-]|$)",
+    "(?:^|/)config/smart_home\\.json(?:[.\\s:_-]|$)",
     "(?:^|/)data/network/(?:network_preferences|proxy_cache)\\.json(?:[.\\s:_-]|$)"
   ]
 }

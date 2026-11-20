@@ -7,11 +7,13 @@ import { create } from "zustand";
 import {
   DEFAULT_MODEL_ID,
   endpointIdFromCompatModel,
-  getModel,
   isCompatModelId,
+  resolveModel,
   type ModelId,
   type ProviderId,
 } from "../config";
+import { closeSessionShells } from "../tools/shell";
+import { usePreferencesStore } from "@/modules/settings/preferences";
 import { useTodosStore } from "./todoStore";
 import { addSessionUsage, sessionUsage } from "../lib/sessionUsage";
 import type { AgentUsageDelta } from "../lib/agent";
@@ -185,6 +187,7 @@ export function touchChat(id: string, c: Chat<UIMessage>) {
     flushPersistEntry(oldest);
     void chats.get(oldest)?.stop();
     chats.delete(oldest);
+    closeSessionShells(oldest);
   }
 }
 // Initial messages for a session, populated at hydration time and consumed
@@ -403,6 +406,7 @@ export const useChatStore = create<StoreState>((set, get) => ({
     const remaining = get().sessions.filter((s) => s.id !== id);
     chats.get(id)?.stop();
     chats.delete(id);
+    closeSessionShells(id);
     seedMessages.delete(id);
     const pend = pendingPersist.get(id);
     if (pend) {
@@ -420,17 +424,28 @@ export const useChatStore = create<StoreState>((set, get) => ({
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      set({ sessions: [fresh], activeSessionId: fresh.id });
+      set({ sessions: [fresh], activeSessionId: fresh.id, agentMeta: { ...IDLE_META } });
       void saveSessionsList([fresh]);
       void saveActiveId(fresh.id);
       return;
     }
 
     const wasActive = get().activeSessionId === id;
-    const nextActive = wasActive ? remaining[0].id : get().activeSessionId;
-    set({ sessions: remaining, activeSessionId: nextActive });
+    set({ sessions: remaining });
     void saveSessionsList(remaining);
-    if (wasActive) void saveActiveId(nextActive);
+    if (wasActive) {
+      const nextActive = remaining[0].id;
+      if (chats.has(nextActive) || seedMessages.has(nextActive)) {
+        set({
+          activeSessionId: nextActive,
+          agentMeta: { ...IDLE_META, ...sessionUsage(remaining[0].usage) },
+        });
+        void saveActiveId(nextActive);
+      } else {
+        set({ activeSessionId: null, agentMeta: { ...IDLE_META } });
+        get().switchSession(nextActive);
+      }
+    }
   },
 
   renameSession: (id, title) => {
@@ -469,7 +484,8 @@ export function getActiveProviderKey(): string | null {
     const eid = endpointIdFromCompatModel(selectedModelId);
     return customEndpointKeys[eid] ?? null;
   }
-  return apiKeys[getModel(selectedModelId as ModelId).provider] ?? null;
+  const provider = resolveModel(selectedModelId, usePreferencesStore.getState().customEndpoints).provider;
+  return apiKeys[provider as ProviderId] ?? null;
 }
 
 export function getChat(sessionId?: string): Chat<UIMessage> | undefined {
