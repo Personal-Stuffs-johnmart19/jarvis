@@ -87,14 +87,13 @@ def create_spreadsheet(
     sheet_name: str = "Sheet1",
 ) -> dict:
     """Create an .xlsx with optional headers and data rows."""
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, Alignment
-    from openpyxl.utils import get_column_letter
-
     headers = headers or []
     rows = rows or []
 
     try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment
+        from openpyxl.utils import get_column_letter
         wb = Workbook()
         ws = wb.active
         ws.title = sheet_name

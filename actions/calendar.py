@@ -36,7 +36,10 @@ def _parse_time(value: str | None, default) -> str:
             return default.replace(hour=int(hh), minute=int(mm), second=0).isoformat()
         if len(v) == 16 and " " in v:
             return datetime.strptime(v, "%Y-%m-%d %H:%M").replace(tzinfo=tz).isoformat()
-        return datetime.fromisoformat(v).isoformat()
+        parsed = datetime.fromisoformat(v)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=tz)
+        return parsed.isoformat()
     except Exception:
         return default.isoformat()
 
@@ -49,8 +52,7 @@ def calendar_action(parameters: dict, response=None, player=None) -> str:
 
         if action in ("list", "upcoming", "today", "agenda"):
             max_results = int(params.get("max_results", 10) or 10)
-            tz = timezone(timedelta(hours=5))
-            now = datetime.now(tz)
+            now = datetime.now().astimezone()
             time_min = now.isoformat()
             time_max = (now + timedelta(days=30)).isoformat()
             events = svc.events().list(
@@ -71,7 +73,7 @@ def calendar_action(parameters: dict, response=None, player=None) -> str:
             summary = str(params.get("summary", "")).strip()
             if not summary:
                 return "I need the event title (summary), sir."
-            now = datetime.now(timezone(timedelta(hours=5)))
+            now = datetime.now().astimezone()
             start_iso = _parse_time(params.get("start"), now)
             end_iso   = _parse_time(params.get("end"), now + timedelta(hours=1))
             body = {
@@ -97,7 +99,7 @@ def calendar_action(parameters: dict, response=None, player=None) -> str:
             query = str(params.get("summary", "")).strip().lower()
             if not query:
                 return "I need event_id or a summary to delete, sir."
-            now = datetime.now(timezone(timedelta(hours=5)))
+            now = datetime.now().astimezone()
             events = svc.events().list(
                 calendarId="primary", timeMin=now.isoformat(),
                 maxResults=50, singleEvents=True,

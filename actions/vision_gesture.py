@@ -267,7 +267,7 @@ class VisionService:
                 time.sleep(0.02)
                 continue
             self._ts = packet.sequence
-            if self._player and getattr(self._player, "vision_preview_open", False):
+            if self._player and (getattr(self._player, "vision_preview_open", False) or getattr(self._player, "preview", False)):
                 safe_frame, _ = self._privacy_processor.blur(packet.frame)
                 try:
                     self._player.set_vision_frame(safe_frame)
@@ -581,6 +581,8 @@ class VisionService:
         if not str(name).strip():
             return "Please provide a profile name, for example: register my face as Doniyor."
         frame = self._capture_frame()
+        if frame is None:
+            return "Could not capture camera frame, sir."
         if self._opencv_identity.load():
             if self._opencv_identity.enroll(name, frame):
                 return f"Face profile registered for {name} using local OpenCV verification."
@@ -604,6 +606,8 @@ class VisionService:
                 return f"Identity verification failed: best match {best[1]} scored {best[2]:.2f}, sir."
             return "Identity verification failed: face not recognized, sir."
         frame = self._capture_frame()
+        if frame is None:
+            return "Could not capture camera frame, sir."
         embedding = self._face_recognition.embedding_from_frame(frame)
         if embedding is None:
             return self._face_recognition.error or "Face recognition is unavailable, sir."
@@ -612,6 +616,8 @@ class VisionService:
 
     def ask_multimodal(self, question: str = "Describe this scene.") -> str:
         frame = self._capture_frame()
+        if frame is None:
+            return "Could not capture camera frame, sir."
         return self._multimodal.ask(frame, question)
 
     def start_recording(self) -> str:
@@ -633,6 +639,8 @@ class VisionService:
         if mp is None:
             return "MediaPipe is not installed, sir."
         mp_python, mp_vision, MPImage, MPImageFormat = mp
+        det = None
+        cap = None
         try:
             det = mp_vision.HolisticLandmarker.create_from_options(
                 mp_vision.HolisticLandmarkerOptions(
@@ -645,7 +653,6 @@ class VisionService:
             for _ in range(5):
                 cap.read()
             ok, frame = cap.read()
-            cap.release()
             if not ok:
                 return "Could not capture camera frame, sir."
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -669,6 +676,14 @@ class VisionService:
             return "On camera: " + ", ".join(desc) + "."
         except Exception as e:
             return f"Snapshot failed: {e}"
+        finally:
+            if cap is not None:
+                cap.release()
+            if det is not None and hasattr(det, "close"):
+                try:
+                    det.close()
+                except Exception:
+                    pass
 
 
 _service = VisionService()

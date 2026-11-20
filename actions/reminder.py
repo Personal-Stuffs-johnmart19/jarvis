@@ -38,17 +38,19 @@ def reminder(
         if target_dt <= datetime.now():
             return "That time is already in the past."
 
-        task_name    = f"JarvisReminder_{target_dt.strftime('%Y%m%d_%H%M')}"
+        from uuid import uuid4
+        from local_mode.processes import run as run_hidden
+
+        task_name    = f"JarvisReminder_{target_dt.strftime('%Y%m%d_%H%M')}_{uuid4().hex[:6]}"
         safe_message = message.replace('"', '').replace("'", "").strip()[:200]
         xml_message  = xml_escape(safe_message)
         py_message   = (safe_message
                         .replace("\\", "\\\\")
-                        .replace("\n", " ").replace("\r", " ")
-                        .replace("{", "{{").replace("}", "}}"))
+                        .replace("\n", " ").replace("\r", " "))
 
         python_exe = sys.executable
         if python_exe.lower().endswith("python.exe"):
-            pythonw = python_exe.replace("python.exe", "pythonw.exe")
+            pythonw = python_exe[:-len("python.exe")] + "pythonw.exe"
             if os.path.exists(pythonw):
                 python_exe = pythonw
 
@@ -106,8 +108,8 @@ except Exception:
   </Triggers>
   <Actions>
     <Exec>
-      <Command>{python_exe}</Command>
-      <Arguments>"{notify_script}"</Arguments>
+      <Command>{xml_escape(python_exe)}</Command>
+      <Arguments>"{xml_escape(notify_script)}"</Arguments>
     </Exec>
   </Actions>
   <Settings>
@@ -131,8 +133,8 @@ except Exception:
         with open(xml_path, "w", encoding="utf-16") as f:
             f.write(xml_content)
 
-        result = subprocess.run(
-            ["schtasks", "/Create", f"/TN", task_name, "/XML", xml_path, "/F"],
+        result = run_hidden(
+            ["schtasks", "/Create", "/TN", task_name, "/XML", xml_path, "/F"],
             capture_output=True, text=True
         )
 

@@ -59,9 +59,11 @@ def _load_token() -> dict:
 
 
 def _save_token(tok: dict) -> None:
+    global _cached
     TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
     TOKEN_PATH.write_text(json.dumps(tok, ensure_ascii=False, indent=2),
                           encoding="utf-8")
+    _cached = None
 
 
 def client_ids() -> tuple:
@@ -217,12 +219,15 @@ def auth_browser_nopkce(port: int = 8787, timeout_seconds: int = 300) -> dict:
     t = threading.Thread(target=server.serve_forever, daemon=True)
     t.start()
 
-    webbrowser.open(auth_url)
-    import time
-    deadline = time.time() + timeout_seconds
-    while time.time() < deadline and not result["code"]:
-        time.sleep(1)
-    server.shutdown()
+    try:
+        webbrowser.open(auth_url)
+        import time
+        deadline = time.time() + timeout_seconds
+        while time.time() < deadline and not result["code"]:
+            time.sleep(1)
+    finally:
+        server.shutdown()
+        server.server_close()
 
     if not result["code"]:
         return {"ok": False, "error": "timed out waiting for authorization."}
@@ -290,7 +295,9 @@ def auth_poll(device_code: str, interval: int = 5, timeout: int = 300) -> dict:
             _save_token(tok)
             email = _fetch_email(data.get("access_token"))
             return {"ok": True, "email": email}
-        if data.get("error") not in ("authorization_pending", "slow_down"):
+        if data.get("error") == "slow_down":
+            interval += 5
+        elif data.get("error") != "authorization_pending":
             return {"ok": False, "error": f"token error: {data.get('error', resp.text[:200])}"}
         time.sleep(interval)
     return {"ok": False, "error": "timed out waiting for authorization."}
@@ -315,15 +322,17 @@ def get_credentials(force_refresh: bool = False):
     sec     = tok.get("client_secret")
     if not refresh or not cid or not sec:
         return None
-    if _cached is not None and not force_refresh:
+    if _cached is not None and not force_refresh and not _cached.expired:
         return _cached
+    raw_scopes = tok.get("scopes", SCOPES)
+    scopes = raw_scopes.split() if isinstance(raw_scopes, str) else list(raw_scopes or SCOPES)
     creds = gcreds.Credentials(
         token=tok.get("token"),
         refresh_token=refresh,
         token_uri=TOKEN_URI,
         client_id=cid,
         client_secret=sec,
-        scopes=tok.get("scopes", SCOPES),
+        scopes=scopes,
     )
     if creds.expired or force_refresh:
         try:

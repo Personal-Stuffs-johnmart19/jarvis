@@ -106,12 +106,13 @@ def add_rule(kind: str, threshold: float, above: bool = True,
 
 
 def remove_rule(rid: int) -> str:
-    rules = _load()
-    before = len(rules)
-    rules[:] = [r for r in rules if r.get("id") != rid]
-    if len(rules) == before:
-        return f"No alert with ID {rid}, sir."
-    _save()
+    with _lock:
+        rules = _load()
+        before = len(rules)
+        rules[:] = [r for r in rules if r.get("id") != rid]
+        if len(rules) == before:
+            return f"No alert with ID {rid}, sir."
+        _save()
     return f"Alert ID {rid} removed, sir."
 
 
@@ -130,11 +131,17 @@ def list_rules() -> str:
 
 def check_rules(cooldown: float = _DEFAULT_COOLDOWN) -> list[str]:
     """Return alert texts for rules that just crossed their threshold."""
-    rules = _load()
+    with _lock:
+        rules = list(_load())
     alerts = []
     now = time.time()
+    sampled: dict[str, tuple[float | None, str]] = {}
+    fired_ids: set[int] = set()
     for r in rules:
-        value, label = _read_value(r.get("kind", ""))
+        kind = r.get("kind", "")
+        if kind not in sampled:
+            sampled[kind] = _read_value(kind)
+        value, label = sampled[kind]
         if value is None:
             continue
         above = bool(r.get("above", True))
@@ -143,13 +150,16 @@ def check_rules(cooldown: float = _DEFAULT_COOLDOWN) -> list[str]:
             continue
         if now - float(r.get("last_fired", 0)) < cooldown:
             continue
-        r["last_fired"] = now
+        fired_ids.add(r.get("id"))
         msg = r.get("message") or (
             f"{label} is {'above' if above else 'below'} {r['threshold']}% "
             f"right now ({value:.0f}%).")
         alerts.append(f"[Monitor] {msg} (ID {r['id']})")
-    if alerts:
+    if fired_ids:
         with _lock:
+            for r in _load():
+                if r.get("id") in fired_ids:
+                    r["last_fired"] = now
             _save()
     return alerts
 
@@ -227,8 +237,11 @@ def email_watch_action(
     params = parameters or {}
     action = str(params.get("action", "status")).lower().strip()
 
-    cfg = json.loads((get_base_dir() / "config" / "api_keys.json").read_text(
-        encoding="utf-8")) if (get_base_dir() / "config" / "api_keys.json").exists() else {}
+    cfg_path = get_base_dir() / "config" / "api_keys.json"
+    try:
+        cfg = json.loads(cfg_path.read_text(encoding="utf-8")) if cfg_path.exists() else {}
+    except Exception:
+        cfg = {}
     if not (cfg.get("gmail_user") and cfg.get("gmail_app_password")):
         return ("Email watching needs Gmail configured, sir: save 'gmail_user' "
                 "and 'gmail_app_password' in config/api_keys.json.")
@@ -293,7 +306,7 @@ def check_email_watch() -> list[str]:
         with imaplib.IMAP4_SSL("imap.gmail.com", 993, timeout=30) as conn:
             conn.login(user, pwd)
             conn.select("INBOX")
-            typ, data = conn.search(None, "ALL")
+            typ, data = conn.uid("search", None, "ALL")
             if typ != "OK" or not data or not data[0]:
                 return []
             uids = [int(u) for u in data[0].split()]

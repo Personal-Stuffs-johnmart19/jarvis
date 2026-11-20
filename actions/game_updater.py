@@ -710,8 +710,18 @@ def game_updater(parameters: dict, player=None, speak=None) -> str:
                     else:
                         results.append(f"Steam: {_update_steam_games(steam_path, game_name=game_name)}")
                 else:
-                    if action == "install":
-                        results.append("Steam: Please specify a game name to install.")
+                    if action == "install" and app_id:
+                        msg = _install_steam_game(steam_path, game_name="", app_id=app_id)
+                        if shutdown:
+                            threading.Thread(target=_watch_and_shutdown,
+                                             kwargs={"steam_path": steam_path, "speak": speak},
+                                             daemon=True).start()
+                            msg += " Auto-shutdown enabled."
+                        if player: player.write_log(f"[GameUpdater] {msg[:100]}")
+                        if speak: speak(msg)
+                        return msg
+                    elif action == "install":
+                        results.append("Steam: Please specify a game name or app_id to install.")
                     else:
                         results.append(f"Steam: {_update_steam_games(steam_path)}")
 

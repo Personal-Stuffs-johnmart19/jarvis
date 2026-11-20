@@ -105,33 +105,57 @@ def _windows_file_path(value):
     return str(path)
 
 
+_PROTECTED_CACHE: tuple[Path, frozenset[Path], Path] | None = None
+
+
+def _protected_paths(project: Path) -> tuple[frozenset[Path], Path]:
+    global _PROTECTED_CACHE
+    if _PROTECTED_CACHE is not None and _PROTECTED_CACHE[0] == project:
+        return _PROTECTED_CACHE[1], _PROTECTED_CACHE[2]
+    protected = frozenset(
+        item.resolve()
+        for item in (
+            *(project / "config" / filename for filename in (
+                "bootstrap-key.json", "api_keys.json", "google_token.json",
+                "bridge_token.txt", "bridge_token.json", "smart_home.json",
+            )),
+            project / ".env",
+            *(project / "data" / "network" / name for name in (
+                "network_preferences.json", "proxy_cache.json",
+            )),
+        )
+    )
+    credentials_dir = (project / "data" / "credentials").resolve()
+    _PROTECTED_CACHE = (project, protected, credentials_dir)
+    return protected, credentials_dir
+
+
 def _credential_path(path):
     from local_mode.file_policy import check_readable
     check_readable(path)
     return (any(part.casefold() in {".ssh", ".aws", ".gnupg", ".codex"} for part in path.parts)
             or path.name.casefold().startswith(".env")
-            or path.name.casefold() in {"api_keys.json", "google_token.json", "bootstrap-key.json"})
+            or path.name.casefold() in {"api_keys.json", "google_token.json", "bootstrap-key.json", "smart_home.json"})
 
 
 def validate_paths(args):
     # Доступ к файлам ключей запрещён до вызова исходного инструмента.
     # Иначе содержимое файла могло бы уйти в следующий запрос модели.
     from local_mode.config import ROOT as PROJECT
-    protected = [PROJECT / "config" / filename for filename in
-        ("bootstrap-key.json", "api_keys.json", "google_token.json", "bridge_token.txt", "bridge_token.json")]
-    protected.append(PROJECT / ".env")
-    protected.extend([PROJECT / "data" / "network" / name for name in ("network_preferences.json", "proxy_cache.json")])
+    protected, credentials_dir = _protected_paths(PROJECT)
     for key, value in _argument_values(args):
         if not isinstance(value, str):
             continue
         if key in {"path", "source", "file", "file_path", "output_path", "destination"}:
+            if key == "source" and urlparse(value).scheme.lower() in {"http", "https"}:
+                continue
             candidate = Path(_windows_file_path(value) if os.name == "nt" else value).expanduser()
             if _credential_path(candidate):
                 raise OwnedValueError("Tools cannot access keys or tokens.")
             resolved = (candidate if candidate.is_absolute() else PROJECT / candidate).resolve()
             if _credential_path(resolved):
                 raise OwnedValueError("Tools cannot access keys or tokens.")
-            if any(resolved == item.resolve() for item in protected) or (PROJECT / "data" / "credentials").resolve() in resolved.parents:
+            if resolved in protected or credentials_dir in resolved.parents:
                 raise ValueError("Tools cannot access keys, tokens or internal network settings.")
         if key == "url" and urlparse(value).scheme.lower() not in {"http", "https", ""}:
             raise ValueError("Only HTTP/HTTPS URLs are allowed.")
@@ -175,7 +199,7 @@ class ToolRegistry:
         # Автономный агент/сгенерированный код и внешняя отправка требуют
         # подтверждения независимо от оптимистичной исходной классификации.
         return (name in {"dev_agent", "agent_task", "send_message", "api_add_key"}
-                or (name == "code_helper" and args.get("action", "auto") not in {"explain", "optimize"})
+                or (name == "code_helper" and args.get("action", "auto") != "explain")
                 or (name == "wake_word" and args.get("action") in {"record", "train", "reset"})
                 or classify(name, args) >= Risk.HIGH)
 

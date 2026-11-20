@@ -56,11 +56,26 @@ def set_wallpaper_from_web(url: str) -> str:
     """Downloads an image from URL and sets it as wallpaper."""
     try:
         import urllib.request
-        suffix = Path(url.split("?")[0]).suffix or ".jpg"
-        tmp    = Path(tempfile.mktemp(suffix=suffix))
-        urllib.request.urlretrieve(url, str(tmp))
-        result = set_wallpaper(str(tmp))
-        return result
+        from urllib.parse import urlparse
+
+        parsed = urlparse(url)
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+            return "Only HTTP/HTTPS image URLs are allowed for wallpaper."
+        suffix = Path(parsed.path).suffix.lower()
+        if suffix not in {".jpg", ".jpeg", ".png", ".bmp", ".webp"}:
+            suffix = ".jpg"
+        max_bytes = 25 * 1024 * 1024
+        req = urllib.request.Request(url, headers={"User-Agent": "Jarvis/1.0"})
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = resp.read(max_bytes + 1)
+        if len(data) > max_bytes:
+            return "Wallpaper image exceeds the 25 MiB limit."
+        if not data:
+            return "Downloaded wallpaper image is empty."
+        with tempfile.NamedTemporaryFile(prefix="jarvis_wall_", suffix=suffix, delete=False) as tmp_file:
+            tmp_file.write(data)
+            tmp_path = tmp_file.name
+        return set_wallpaper(tmp_path)
     except Exception as e:
         return f"Could not download wallpaper: {e}"
 
@@ -70,9 +85,8 @@ def get_current_wallpaper() -> str:
     try:
         if sys.platform == "win32":
             import winreg
-            key  = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
-                                  r"Control Panel\Desktop")
-            val, _ = winreg.QueryValueEx(key, "Wallpaper")
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Control Panel\Desktop") as key:
+                val, _ = winreg.QueryValueEx(key, "Wallpaper")
             return f"Current wallpaper: {val}"
         else:
             return "Wallpaper path retrieval not supported on this OS."

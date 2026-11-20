@@ -14,11 +14,14 @@ def _service():
 
 TEXT_MIME = {
     "text/plain", "text/html", "text/csv",
-    "application/pdf", "application/rtf",
-    "text/markdown", "application/vnd.google-apps.document",
+    "text/markdown", "application/json", "application/vnd.google-apps.document",
 }
 GOOGLE_DOC = "application/vnd.google-apps.document"
 GOOGLE_SHEET = "application/vnd.google-apps.spreadsheet"
+
+
+def _escape_query(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("'", "\\'")
 
 
 def drive_action(parameters: dict, response=None, player=None) -> str:
@@ -28,8 +31,8 @@ def drive_action(parameters: dict, response=None, player=None) -> str:
         svc = _service()
 
         if action in ("list", "recent"):
-            q = params.get("query", "")
-            query_str = f"name contains '{q}'" if q else ""
+            q = str(params.get("query", "") or "").strip()
+            query_str = f"name contains '{_escape_query(q)}'" if q else ""
             results = svc.files().list(
                 q=query_str or None,
                 pageSize=int(params.get("max_results", 10) or 10),
@@ -51,7 +54,7 @@ def drive_action(parameters: dict, response=None, player=None) -> str:
             if not q:
                 return "I need a search query, sir."
             results = svc.files().list(
-                q=f"name contains '{q}'",
+                q=f"name contains '{_escape_query(q)}'",
                 pageSize=10,
                 fields="files(id,name,mimeType)",
             ).execute().get("files", [])

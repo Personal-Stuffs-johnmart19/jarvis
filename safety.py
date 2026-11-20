@@ -120,10 +120,17 @@ _ACTION_RISK = {
         None: Risk.HIGH,
     },
     "gmail": {
+        "read": Risk.LOW,
+        "list": Risk.LOW,
+        "search": Risk.LOW,
+        "inbox": Risk.LOW,
+        "unread": Risk.LOW,
+        "check": Risk.LOW,
+        "get": Risk.LOW,
         "send": Risk.HIGH,
         "compose": Risk.HIGH,
         "delete": Risk.HIGH,
-        None: Risk.LOW,
+        None: Risk.HIGH,
     },
     "task_manager": {
         "kill": Risk.HIGH,
@@ -142,6 +149,7 @@ _ACTION_RISK = {
     "code_helper": {
         "run": Risk.HIGH,
         "build": Risk.HIGH,
+        "optimize": Risk.HIGH,
         "screen_debug": Risk.MEDIUM,
         None: Risk.MEDIUM,
     },

@@ -725,7 +725,7 @@ _queue_lock    = threading.Lock()
 def get_queue() -> TaskQueue:
     global _queue_started
     with _queue_lock:
-        if not _queue_started:
+        if not _queue_started or not _queue._running:
             _queue.start()
             _queue_started = True
     return _queue
@@ -738,6 +738,7 @@ def existing_queue():
 
 def cancel_existing(*, stop=False) -> int:
     """Explicit Stop/close only; never creates or starts a queue as a side effect."""
+    global _queue_started
     with _queue_lock:
         if not _queue_started:
             return 0
@@ -751,6 +752,7 @@ def cancel_existing(*, stop=False) -> int:
             queue._queue.clear()
             if stop:
                 queue._running = False
+                _queue_started = False
             queue._condition.notify_all()
         worker = queue._worker_thread
     if stop and worker and worker is not threading.current_thread():

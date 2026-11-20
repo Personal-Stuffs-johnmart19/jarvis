@@ -195,7 +195,7 @@ def _pick_engine():
             return "jarvis", _matcher
     except Exception:
         pass
-    return "jarvis", _service
+    return "openwakeword", _service
 
 
 def wake_word(
@@ -205,11 +205,11 @@ def wake_word(
     session_memory=None,
 ) -> str:
     """Control the wake word listener.
-    action: start | stop | status | record | reset"""
+    action: start | stop | status | record | train | reset"""
     params = parameters or {}
     action = str(params.get("action", "status")).lower().strip()
 
-    from actions.jarvis_wake import _matcher
+    from actions.jarvis_wake import _matcher, MODEL_PATH, CLIPS_DIR
 
     if action in ("record", "record_wake_word"):
         n = int(params.get("clips") or params.get("count") or 5)
@@ -218,6 +218,18 @@ def wake_word(
         return _matcher.train(
             steps=int(params.get("steps") or params.get("epochs") or 900),
         )
+    if action == "reset":
+        _matcher.stop()
+        _service.stop()
+        removed = 0
+        if MODEL_PATH.exists():
+            MODEL_PATH.unlink(missing_ok=True)
+            removed += 1
+        if CLIPS_DIR.exists():
+            for wav in CLIPS_DIR.glob("*.wav"):
+                wav.unlink(missing_ok=True)
+                removed += 1
+        return f"Wake word model and recordings reset ({removed} file(s) removed)."
 
     engine_name, engine = _pick_engine()
 
@@ -234,4 +246,4 @@ def wake_word(
             return f"Wake word is {state} (Hey Jarvis). Model: reference loaded."
         avail = "available" if engine.available else "unavailable (install openwakeword)"
         return f"Wake word is {state} (Hey Jarvis). Model: {avail}."
-    return f"Unknown wake word action: {action}, sir. Use start | stop | status | record"
+    return f"Unknown wake word action: {action}, sir. Use start | stop | status | record | train | reset"

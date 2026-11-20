@@ -117,30 +117,17 @@ def _build_google_flights_url(
     Builds a Google Flights URL with pre-filled search parameters.
     Uses the direct search URL format.
     """
-    cabin_map = {
-        "economy":  "1",
-        "premium":  "2",
-        "business": "3",
-        "first":    "4",
-    }
-    cabin_code = cabin_map.get(cabin.lower(), "1")
+    from urllib.parse import quote_plus
 
-    base = "https://www.google.com/travel/flights"
-
+    parts = [f"Flights from {origin} to {destination} on {date}"]
     if return_date:
-        url = (
-            f"{base}?q=Flights+from+{origin}+to+{destination}"
-            f"+on+{date}+returning+{return_date}"
-            f"&curr=TRY"
-        )
-    else:
-        url = (
-            f"{base}?q=Flights+from+{origin}+to+{destination}+on+{date}"
-            f"&curr=TRY"
-        )
-
-    return url
-
+        parts.append(f"returning {return_date}")
+    if passengers and int(passengers) > 1:
+        parts.append(f"{int(passengers)} passengers")
+    if cabin and cabin.lower() != "economy":
+        parts.append(f"{cabin.lower()} class")
+    query = quote_plus(" ".join(parts))
+    return f"https://www.google.com/travel/flights?q={query}"
 
 
 def _search_flights_browser(
@@ -164,10 +151,14 @@ def _search_flights_browser(
 
     print(f"[FlightFinder] 🌐 Opening: {url}")
     browser_control({"action": "go_to", "url": url})
-    time.sleep(5)  
+    time.sleep(5)
 
     result = browser_control({"action": "get_text"})
-    return result or "", url
+    if isinstance(result, dict):
+        raw_text = str(result.get("text") or result.get("content") or "")
+    else:
+        raw_text = str(result or "")
+    return raw_text, url
 
 
 def _parse_flights_with_gemini(
@@ -247,9 +238,13 @@ def _format_spoken(
             f"{dur_str}, {stop_str}, {price_str}."
         )
 
+    def _price_num(flight: dict) -> int:
+        digits = re.sub(r"[^\d]", "", str(flight.get("price", "")))
+        return int(digits) if digits else 10**9
+
     cheapest = min(
         (f for f in flights if f.get("price")),
-        key=lambda x: re.sub(r"[^\d]", "", str(x.get("price", "99999"))) or "99999",
+        key=_price_num,
         default=None,
     )
     if cheapest:
@@ -312,7 +307,9 @@ def _save_to_notepad(content: str, origin: str, destination: str) -> str:
     from datetime import datetime
 
     ts       = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"flights_{origin}_{destination}_{ts}.txt".replace(" ", "_")
+    safe_origin = re.sub(r"[^A-Za-z0-9_-]+", "_", origin).strip("_") or "origin"
+    safe_dest = re.sub(r"[^A-Za-z0-9_-]+", "_", destination).strip("_") or "dest"
+    filename = f"flights_{safe_origin}_{safe_dest}_{ts}.txt"
     desktop  = Path.home() / "Desktop"
     desktop.mkdir(parents=True, exist_ok=True)
     filepath = desktop / filename

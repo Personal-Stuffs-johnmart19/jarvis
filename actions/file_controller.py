@@ -148,13 +148,22 @@ def organize_folder(
         if new_path.exists():
             skipped += 1
             continue
-        moves.append((f, new_path))
         if not dry_run:
             try:
                 new_dir.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(f), str(new_path))
+                moves.append((f, new_path))
             except Exception as e:
+                if moves:
+                    _write_organize_log({
+                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "scope": str(target),
+                        "mode": mode,
+                        "moves": [{"from": str(src), "to": str(dst)} for src, dst in moves],
+                    })
                 raise ValueError(f"Could not move {f.name}: {e}")
+        else:
+            moves.append((f, new_path))
 
     verb = "Would move" if dry_run else "Moved"
     result = f"{verb} {len(moves)} file(s) into categories under {target.name}/ ({'preview, nothing changed' if dry_run else mode + ' mode'})."
@@ -682,13 +691,19 @@ def file_controller(
 
         elif action == "move":
             full = _full_path(path, name)
-            destination = _resolve_path(parameters.get("destination", ""))
+            raw_dest = str(parameters.get("destination", "") or "").strip()
+            if not raw_dest:
+                raise ValueError("Move requires a non-empty destination path")
+            destination = _resolve_path(raw_dest)
             validate_paths({"destination": str(destination / Path(full).name if destination.is_dir() else destination)})
             result = move_file(full, str(destination))
 
         elif action == "copy":
             full = _full_path(path, name)
-            destination = _resolve_path(parameters.get("destination", ""))
+            raw_dest = str(parameters.get("destination", "") or "").strip()
+            if not raw_dest:
+                raise ValueError("Copy requires a non-empty destination path")
+            destination = _resolve_path(raw_dest)
             validate_paths({"destination": str(destination / Path(full).name if destination.is_dir() else destination)})
             result = copy_file(full, str(destination))
 
@@ -749,13 +764,18 @@ def file_controller(
 
         elif action == "zip":
             source = _resolve_path(path)
-            target = parameters.get("destination", "") or str(source) + ".zip"
             if not source.exists():
                 raise ValueError(f"Path not found: {source}")
+            raw_dest = str(parameters.get("destination", "") or "").strip()
+            if raw_dest:
+                resolved_dest = _resolve_path(raw_dest)
+                if resolved_dest.is_dir():
+                    target = resolved_dest / f"{source.stem}.zip"
+                else:
+                    target = resolved_dest
             else:
-                if parameters.get("destination"):
-                    target = _resolve_path(parameters.get("destination", "")) if source.is_dir() else source.parent / parameters.get("destination")
-                result = create_zip(source, str(target))
+                target = Path(str(source) + ".zip")
+            result = create_zip(source, str(target))
 
         elif action == "unzip":
             archive = _resolve_path(path)

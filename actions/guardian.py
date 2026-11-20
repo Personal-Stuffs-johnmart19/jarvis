@@ -60,8 +60,14 @@ _KEYS_HELP = (
 )
 
 
+import copy
+import tempfile
+
+_WMI_TEMP_SUPPORTED: bool | None = None
+
+
 def _load() -> dict:
-    cfg = dict(_DEFAULTS)
+    cfg = copy.deepcopy(_DEFAULTS)
     if CONFIG_FILE.exists():
         try:
             data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
@@ -123,6 +129,7 @@ def _cpu_pct() -> float | None:
 
 def _temp_c() -> float | None:
     """CPU/board temperature when the OS exposes it (Linux sensors or WMI)."""
+    global _WMI_TEMP_SUPPORTED
     if _PSUTIL:
         try:
             temps = psutil.sensors_temperatures()
@@ -132,6 +139,8 @@ def _temp_c() -> float | None:
                         return float(e.current)
         except Exception:
             pass
+    if _WMI_TEMP_SUPPORTED is False:
+        return None
     try:
         out = run_hidden(
             ["powershell", "-NoProfile", "-Command",
@@ -143,11 +152,13 @@ def _temp_c() -> float | None:
             try:
                 celsius = float(v) / 10.0 - 273.15
                 if 0 <= celsius <= 110:
+                    _WMI_TEMP_SUPPORTED = True
                     return round(celsius, 1)
             except Exception:
                 continue
+        _WMI_TEMP_SUPPORTED = False
     except Exception:
-        pass
+        _WMI_TEMP_SUPPORTED = False
     return None
 
 
@@ -155,7 +166,7 @@ def battery_health() -> str:
     """Battery wear report via `powercfg /batteryreport`. Returns a
     spoken-friendly string."""
     tmp = Path(time.strftime("jarvis-batt-%Y%m%d-%H%M%S.html", time.localtime()))
-    report = get_base_dir() / "config" / tmp.name
+    report = Path(tempfile.gettempdir()) / tmp.name
     try:
         run_hidden(
             ["powercfg", "/batteryreport", "/output", str(report)],
@@ -351,7 +362,7 @@ def guardian_action(
         return f"Guardian setting {key} is now {cfg[key]}."
 
     if action in ("reset", "defaults"):
-        cfg = dict(_DEFAULTS)
+        cfg = copy.deepcopy(_DEFAULTS)
         _save(cfg)
         return "Guardian reset to default settings, sir."
 

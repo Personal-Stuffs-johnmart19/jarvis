@@ -103,17 +103,10 @@ def web_search(
             print("[WebSearch] ✅ Compare done.")
             return result
 
-        print("[WebSearch] 🌐 Gemini search...")
-        try:
-            result = _gemini_search(query)
-            print("[WebSearch] ✅ Gemini OK.")
-            return result
-        except Exception as e:
-            print(f"[WebSearch] ⚠️ Gemini failed ({e}), trying DDG...")
-            results = _ddg_search(query)
-            result  = _format_ddg(query, results)
-            print(f"[WebSearch] ✅ DDG: {len(results)} results.")
-            return result
+        print("[WebSearch] 🌐 Searching DuckDuckGo...")
+        result = _gemini_search(query)
+        print("[WebSearch] ✅ Search OK.")
+        return result
 
     except Exception as e:
         print(f"[WebSearch] ❌ Failed: {e}")

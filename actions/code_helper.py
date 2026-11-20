@@ -448,6 +448,12 @@ def _optimize_action(file_path, code, language, output_path, player) -> str | di
     if player:
         player.write_log("[Code] Optimizing code...")
 
+    if len(code) > 24000:
+        return _code_failure(
+            "file_too_large",
+            "Code exceeds the 24,000-character limit for whole-file optimize; edit targeted sections instead.",
+        )
+
     lang  = language or "python"
     prompt = f"""You are an expert {lang} developer and code reviewer.
 Optimize the following code for:
@@ -459,7 +465,7 @@ Optimize the following code for:
 Return ONLY the optimized code — no explanation, no markdown, no backticks.
 
 Original code:
-{code[:6000]}
+{code}
 
 Optimized code:"""
 

@@ -773,8 +773,9 @@ def computer_settings(
 
     if action == "volume_set":
         try:
-            volume_set(int(50 if value is None else value))
-            return f"Volume set to {value}%."
+            level = int(50 if value is None else value)
+            volume_set(level)
+            return f"Volume set to {level}%."
         except Exception as e:
             return f"Could not set volume: {e}"
 
@@ -782,8 +783,9 @@ def computer_settings(
         if action == "brightness" and value is None:
             return "Brightness up or down? Say 'brightness up' or 'brightness down', sir."
         try:
-            brightness_set(int(50 if value is None else value))
-            return f"Brightness set to {value}%."
+            level = int(50 if value is None else value)
+            brightness_set(level)
+            return f"Brightness set to {level}%."
         except Exception as e:
             return f"Could not set brightness: {e}"
 
@@ -791,7 +793,7 @@ def computer_settings(
         return wifi_status()
 
     if action in ("app_volume", "mute_app", "set_app_volume"):
-        app_name = str(params.get("app_name") or params.get("value") or value or "").strip()
+        app_name = str(params.get("app_name") or (value if isinstance(value, str) and not value.strip().isdigit() else "") or "").strip()
         if not app_name:
             return "Which app's volume, sir?"
         if action == "mute_app":

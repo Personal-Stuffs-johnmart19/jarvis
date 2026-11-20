@@ -105,7 +105,7 @@ def _control_home_assistant(device: dict, action: str, value):
     body = {"entity_id": entity}
     if action == "set_level":
         body["brightness_pct"] = max(0, min(100, int(value)))
-    _ha_request(_cfg_ha_global(), "POST", f"/api/services/{domain}/{service}", body)
+    _ha_request({"home_assistant": _cfg_ha_global()}, "POST", f"/api/services/{domain}/{service}", body)
     return f"{device.get('name')}: {action} OK"
 
 
@@ -146,9 +146,12 @@ def _list_status(cfg: dict) -> str:
         return "No devices configured. Add them to config/smart_home.json"
     lines = []
     for d in devices:
-        if cfg.get("mode") == "simulated":
+        mode = cfg.get("mode")
+        if mode == "simulated":
             st = _sim_get(str(d.get("id")))
             lines.append(f"- {d.get('name')} ({d.get('type')}): {st.get('state')}")
+        elif mode == "webhook":
+            lines.append(f"- {d.get('name')} ({d.get('type')}): webhook device (status not queryable)")
         else:
             try:
                 lines.append(f"- {d.get('name')}: {_control_home_assistant(d, 'status', None)}")

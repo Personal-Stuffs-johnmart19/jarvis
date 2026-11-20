@@ -14,8 +14,29 @@ def _get_weather(city: str) -> str:
         return ""
     try:
         from actions.weather_report import weather_action
-        text = weather_action(parameters={"city": city}, player=None)
-        return str(text or "").strip()
+        result = weather_action(parameters={"city": city}, player=None)
+        if isinstance(result, dict):
+            if not result.get("ok"):
+                return f"Weather unavailable: {result.get('error', 'unknown error')}"
+            loc = (result.get("location") or {}).get("name") or result.get("city") or city
+            cur = result.get("current") or {}
+            units = result.get("current_units") or {}
+            daily = result.get("daily") or {}
+            t_unit = units.get("temperature_2m", "°C")
+            w_unit = units.get("wind_speed_10m", "km/h")
+            parts = []
+            if "temperature_2m" in cur:
+                parts.append(f"{cur['temperature_2m']}{t_unit}")
+            if "apparent_temperature" in cur:
+                parts.append(f"feels like {cur['apparent_temperature']}{t_unit}")
+            if "wind_speed_10m" in cur:
+                parts.append(f"wind {cur['wind_speed_10m']} {w_unit}")
+            highs = daily.get("temperature_2m_max")
+            lows = daily.get("temperature_2m_min")
+            if isinstance(highs, list) and highs and isinstance(lows, list) and lows:
+                parts.append(f"high {highs[0]}{t_unit}, low {lows[0]}{t_unit}")
+            return f"{loc}: " + ", ".join(parts) if parts else f"{loc}: weather retrieved"
+        return str(result or "").strip()
     except Exception as e:
         return f"Weather unavailable: {e}"
 

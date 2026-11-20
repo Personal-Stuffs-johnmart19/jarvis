@@ -132,10 +132,10 @@ def _read_gmail(cfg: dict, limit: int) -> str:
 
 # ── Gmail API (used when Google OAuth is authorized) ────────────────────────
 
-def _gmail_service():
+def _gmail_service(creds=None):
     from googleapiclient.discovery import build
     import google_oauth
-    creds = google_oauth.get_credentials()
+    creds = creds or google_oauth.get_credentials()
     if not creds:
         return None
     return build("gmail", "v1", credentials=creds)
@@ -144,18 +144,22 @@ def _gmail_service():
 def _send_gmail_api(creds, to: str, subject: str, body: str) -> str:
     import base64
     from email.mime.text import MIMEText
-    svc = _gmail_service()
+    svc = _gmail_service(creds)
+    if svc is None:
+        raise RuntimeError("Google OAuth credentials expired or unavailable; re-authorize Google account.")
     msg = MIMEText(body, "plain", "utf-8")
     msg["To"]      = to
     msg["Subject"] = subject
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("ascii")
-    sent = svc.users().messages().send(
+    svc.users().messages().send(
         userId="me", body={"raw": raw}).execute()
     return f"Email sent to {to} with subject '{subject}'."
 
 
 def _read_gmail_api(creds, limit: int) -> str:
-    svc = _gmail_service()
+    svc = _gmail_service(creds)
+    if svc is None:
+        raise RuntimeError("Google OAuth credentials expired or unavailable; re-authorize Google account.")
     res = svc.users().messages().list(
         userId="me", maxResults=min(int(limit or 5), 20),
         labelIds=["INBOX"], q="in:inbox").execute()

@@ -101,13 +101,26 @@ def _network() -> str:
 def _top_processes(n: int = 5) -> str:
     items = []
     try:
-        for proc in psutil.process_iter(["name", "cpu_percent", "memory_percent"]):
+        procs = []
+        for proc in psutil.process_iter(["name", "memory_percent"]):
             try:
-                items.append((proc.info["cpu_percent"] or 0, proc.info["name"]))
+                proc.cpu_percent(interval=None)
+                procs.append(proc)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        import time
+        time.sleep(0.1)
+        for proc in procs:
+            try:
+                name = proc.info.get("name")
+                cpu = proc.cpu_percent(interval=None) or 0.0
+                mem = proc.info.get("memory_percent") or 0.0
+                if name:
+                    items.append((cpu, mem, name))
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
         items.sort(reverse=True)
-        top = [name for _, name in items[:n] if name]
+        top = [name for _, _, name in items[:n] if name]
         return ", ".join(top)
     except Exception:
         return "unavailable"

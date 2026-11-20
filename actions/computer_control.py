@@ -232,7 +232,7 @@ def _move_mouse(x: int, y: int, duration: float = 0.3) -> str:
 def _drag(x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> str:
     """Drags from (x1,y1) to (x2,y2)."""
     _ensure_pyautogui()
-    _pg().drag(x1 - _pg().position()[0], y1 - _pg().position()[1])
+    _pg().moveTo(x1, y1)
     _pg().dragTo(x2, y2, duration=duration)
     return f"Dragged from ({x1},{y1}) to ({x2},{y2})"
 
@@ -526,7 +526,8 @@ def computer_control(
                 x1=int(parameters.get("x1", 0)),
                 y1=int(parameters.get("y1", 0)),
                 x2=int(parameters.get("x2", 0)),
-                y2=int(parameters.get("y2", 0))
+                y2=int(parameters.get("y2", 0)),
+                duration=float(parameters.get("duration", 0.5)),
             )
 
         elif action == "hotkey":
