@@ -100,6 +100,10 @@ fn search_tree(
         let root_path = root_path.to_path_buf();
         let root_display = root_display.to_string();
         let workspace = workspace.clone();
+        let mut searcher = SearcherBuilder::new()
+            .binary_detection(BinaryDetection::quit(b'\x00'))
+            .line_number(true)
+            .build();
 
         Box::new(move |dent_res| {
             if truncated.load(Ordering::Relaxed) || cancel() {
@@ -132,30 +136,43 @@ fn search_tree(
 
             let abs = display_path(path, &root_path, &root_display, &workspace);
             let rel_clone = rel.clone();
-            let mut searcher = SearcherBuilder::new()
-                .binary_detection(BinaryDetection::quit(b'\x00'))
-                .line_number(true)
-                .build();
+            let mut file_hits: Vec<GrepHit> = Vec::new();
+            let mut hit_cap = false;
 
             let _ = searcher.search_path(
                 &matcher,
                 path,
                 UTF8(|line_num, text| {
-                    let line_text = text.trim_end_matches('\n').to_string();
-                    let mut guard = hits.lock().unwrap();
-                    if guard.len() >= cap {
-                        truncated.store(true, Ordering::Relaxed);
+                    if truncated.load(Ordering::Relaxed) {
+                        hit_cap = true;
                         return Ok(false);
                     }
-                    guard.push(GrepHit {
+                    let line_text = text.trim_end_matches('\n').to_string();
+                    file_hits.push(GrepHit {
                         path: abs.clone(),
                         rel: rel_clone.clone(),
                         line: line_num,
                         text: line_text,
                     });
+                    if file_hits.len() >= cap {
+                        hit_cap = true;
+                        return Ok(false);
+                    }
                     Ok(true)
                 }),
             );
+            if !file_hits.is_empty() {
+                let mut guard = hits.lock().unwrap_or_else(|e| e.into_inner());
+                let remaining = cap.saturating_sub(guard.len());
+                if file_hits.len() > remaining || (hit_cap && remaining <= file_hits.len()) {
+                    guard.extend(file_hits.into_iter().take(remaining));
+                    truncated.store(true, Ordering::Relaxed);
+                } else {
+                    guard.extend(file_hits);
+                }
+            } else if hit_cap {
+                truncated.store(true, Ordering::Relaxed);
+            }
 
             WalkState::Continue
         })

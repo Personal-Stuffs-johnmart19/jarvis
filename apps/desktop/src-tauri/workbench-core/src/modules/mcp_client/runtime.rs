@@ -150,6 +150,7 @@ pub struct ServerStatus {
 struct Session {
     service: Mutex<Option<RunningService<RoleClient, ()>>>,
     peer: rmcp::Peer<RoleClient>,
+    runtime: tokio::runtime::Handle,
     transport_settled: Arc<AtomicBool>,
     active_calls: AtomicUsize,
     tree: Mutex<Option<OwnedTree>>,
@@ -164,31 +165,30 @@ impl Session {
         self.close_transport();
     }
     fn close_transport(&self) {
-        if let Some(tree) = self.tree.lock().unwrap().as_ref() {
+        if let Some(tree) = self.tree.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
             tree.stop();
         }
-        if let Some(service) = self.service.lock().unwrap().take() {
+        if let Some(service) = self.service.lock().unwrap_or_else(|e| e.into_inner()).take() {
             let settled = self.transport_settled.clone();
             // Cancellation flags and a closed sender precede transport.close().
             // Only joining the service can attest to actual transport cleanup.
-            if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-                runtime.spawn(async move {
-                    if service.cancel().await.is_ok() {
-                        settled.store(true, Ordering::SeqCst);
-                    }
-                });
-            }
+            let runtime = tokio::runtime::Handle::try_current().unwrap_or_else(|_| self.runtime.clone());
+            runtime.spawn(async move {
+                if service.cancel().await.is_ok() {
+                    settled.store(true, Ordering::SeqCst);
+                }
+            });
         }
     }
     fn cleanup_settled(&self) -> bool {
-        match self.tree.lock().unwrap().as_ref() {
+        match self.tree.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
             Some(tree) => tree.settled() && self.transport_settled.load(Ordering::SeqCst),
             None => self.transport_settled.load(Ordering::SeqCst),
         }
     }
     fn try_begin_call(&self) -> Result<(), String> {
         self.active_calls
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |state| {
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |state| {
                 (state & SESSION_STOPPED == 0).then_some(state + 1)
             })
             .map(|_| ())
@@ -726,6 +726,7 @@ impl McpManager {
                         return Ok(Session {
                             peer: service.peer().clone(),
                             service: Mutex::new(Some(service)),
+                            runtime: tokio::runtime::Handle::current(),
                             transport_settled: Arc::new(AtomicBool::new(false)),
                             active_calls: AtomicUsize::new(0),
                             tree: Mutex::new(tree),

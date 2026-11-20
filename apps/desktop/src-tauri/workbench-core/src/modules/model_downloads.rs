@@ -836,7 +836,9 @@ async fn download_file(
             hasher = Sha256::new();
         }
         if let Some(len) = resp.content_length() {
-            let total = existing + len;
+            let total = existing
+                .checked_add(len)
+                .ok_or_else(|| "file exceeds maximum allowed size".to_string())?;
             if total > cfg.max_file_bytes {
                 return Err("file exceeds maximum allowed size".into());
             }
@@ -1020,14 +1022,14 @@ pub fn delete_model(cfg: &Config, kind: ModelKind, repo_id: &str, revision: &str
     validate_revision_sha(revision)?;
     let dir = model_dir_path(cfg, kind, repo_id, revision);
     let name = repo_dir_name(repo_id);
-    // Refuse symlinked ancestors before reading anything.
+    // Refuse symlinked or junction ancestors before reading anything.
+    refuse_symlink(&cfg.models_root)?;
     let mut walk = cfg.models_root.clone();
     for c in [kind.dir(), name.as_str(), revision] {
         walk.push(c);
-        match fs::symlink_metadata(&walk) {
-            Ok(m) if m.file_type().is_symlink() => return Err(format!("symlink refused: {}", walk.display())),
-            Ok(_) => {}
-            Err(_) => return Err("model is not installed".into()),
+        refuse_symlink(&walk)?;
+        if fs::symlink_metadata(&walk).is_err() {
+            return Err("model is not installed".into());
         }
     }
     let m = read_manifest(&dir).ok_or("no owned manifest; refusing to delete")?;
@@ -1157,20 +1159,20 @@ impl ModelDownloadsState {
     }
 
     pub fn cancel(&self, id: &str) -> bool {
-        let mut found = false;
-        if let Some(flag) = self.cancel_handles.lock().unwrap().get(id) {
+        let handles = self.cancel_handles.lock().unwrap_or_else(|e| e.into_inner());
+        let mut early = self.early_cancels.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(flag) = handles.get(id) {
             flag.store(true, Ordering::Relaxed);
-            found = true;
+            return true;
         }
         if validate_request_id(id).is_ok() {
-            let mut early = self.early_cancels.lock().unwrap();
             if early.len() >= 256 {
                 early.clear();
             }
             early.insert(id.to_string());
             true
         } else {
-            found
+            false
         }
     }
 }
@@ -1245,7 +1247,21 @@ pub fn model_list_installed() -> Vec<Manifest> {
 }
 
 #[tauri::command]
-pub fn model_delete(kind: ModelKind, repo_id: String, revision: String) -> Result<(), String> {
+pub fn model_delete(
+    kind: ModelKind,
+    repo_id: String,
+    revision: String,
+    state: tauri::State<'_, ModelDownloadsState>,
+) -> Result<(), String> {
+    let target_id = format!("{}:{}:{}", kind.dir(), repo_id, revision);
+    if state
+        .active_downloads
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .contains(&target_id)
+    {
+        return Err("cannot delete model while a download is active".into());
+    }
     let cfg = default_config();
     delete_model(&cfg, kind, &repo_id, &revision)
 }
@@ -1286,12 +1302,29 @@ impl DownloadRegistration {
     }
 
     fn register_cancel(&mut self, key: String, cancel: Arc<AtomicBool>) {
-        self.state.cancel_handles.lock().unwrap().insert(key.clone(), cancel);
+        let mut handles = self
+            .state
+            .cancel_handles
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let mut early = self
+            .state
+            .early_cancels
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if early.remove(&key) {
+            cancel.store(true, Ordering::Relaxed);
+        }
+        handles.insert(key.clone(), cancel);
         self.cancel_keys.push(key);
     }
 
     fn register_active(&mut self, key: String) -> Res<()> {
-        let mut active = self.state.active_downloads.lock().unwrap();
+        let mut active = self
+            .state
+            .active_downloads
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if active.contains(&key) {
             return Err(format!("download already in progress: {key}"));
         }
@@ -1308,13 +1341,21 @@ impl Drop for DownloadRegistration {
             activity.active.remove(&self.activity_id);
         }
         if !self.cancel_keys.is_empty() {
-            let mut handles = self.state.cancel_handles.lock().unwrap();
+            let mut handles = self
+                .state
+                .cancel_handles
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             for k in &self.cancel_keys {
                 handles.remove(k);
             }
         }
         if !self.active_keys.is_empty() {
-            let mut active = self.state.active_downloads.lock().unwrap();
+            let mut active = self
+                .state
+                .active_downloads
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             for k in &self.active_keys {
                 active.remove(k);
             }
@@ -1387,9 +1428,6 @@ where
 
     if let Some(ref req_id) = request.request_id {
         validate_request_id(req_id)?;
-        if reg.state.early_cancels.lock().unwrap().remove(req_id) {
-            cancel.store(true, Ordering::Relaxed);
-        }
         reg.register_active(req_id.clone())?;
         reg.register_cancel(req_id.clone(), cancel.clone());
     }
@@ -1443,6 +1481,9 @@ where
     let target_id = format!("{}:{}:{}", request.kind.dir(), request.repo_id, info.revision);
     reg.register_active(target_id.clone())?;
     reg.register_cancel(target_id.clone(), cancel.clone());
+    if cancel.load(Ordering::Relaxed) {
+        return Err(CANCELLED.into());
+    }
 
     let task_id_progress = request.request_id.clone().unwrap_or_else(|| target_id.clone());
     let progress_cb = Arc::new(on_progress);

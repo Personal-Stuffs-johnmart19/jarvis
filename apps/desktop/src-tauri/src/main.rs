@@ -73,6 +73,15 @@ fn request_quit(app: &tauri::AppHandle) {
         }
         if let Err(error) = window.emit("jarvis:quit-requested", id) {
             eprintln!("Could not request guarded quit: {error}");
+            if let Ok(mut state) = app.state::<Mutex<QuitState>>().lock() {
+                if state.pending == Some(id) {
+                    state.pending = None;
+                }
+            }
+        }
+    } else if let Ok(mut state) = app.state::<Mutex<QuitState>>().lock() {
+        if state.pending == Some(id) {
+            state.pending = None;
         }
     }
 }

@@ -71,16 +71,19 @@ pub async fn shell_run_command(
         if cancel.is_some_and(CancelHandle::is_cancelled) {
             return Err(CANCELLED_ERROR.into());
         }
-        authorize_spawn_cwd(
+        let canonical_cwd = authorize_spawn_cwd(
             &app.state::<WorkspaceRegistry>(),
             cwd.as_deref(),
             &workspace,
         )?;
-        let cwd_path = cwd
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(str::to_string);
+        let cwd_path = canonical_cwd
+            .map(|p| p.to_string_lossy().into_owned())
+            .or_else(|| {
+                cwd.as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string)
+            });
         run_blocking_cancellable(trimmed, cwd_path, workspace, dur, cancel)
     })
     .await
@@ -95,6 +98,7 @@ fn clamp_timeout(timeout_secs: Option<u64>) -> Duration {
     )
 }
 
+#[cfg(test)]
 pub(crate) fn run_blocking_inner(
     command: String,
     cwd: Option<String>,
@@ -431,15 +435,22 @@ pub async fn shell_bg_spawn(
 ) -> Result<u32, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
     tauri::async_runtime::spawn_blocking(move || {
-        authorize_spawn_cwd(
+        let canonical_cwd = authorize_spawn_cwd(
             &app.state::<WorkspaceRegistry>(),
             cwd.as_deref(),
             &workspace,
         )?;
-        let proc = background::spawn(command, cwd, workspace)?;
+        let spawn_cwd = canonical_cwd
+            .map(|p| p.to_string_lossy().into_owned())
+            .or(cwd);
+        let proc = background::spawn(command, spawn_cwd, workspace)?;
         let state = app.state::<ShellState>();
         let id = state.next_bg_id.fetch_add(1, Ordering::Relaxed);
-        state.bg.write().unwrap().insert(id, proc);
+        let mut bg = state.bg.write().unwrap_or_else(|e| e.into_inner());
+        if bg.len() >= 32 {
+            bg.retain(|_, p| !p.exited.load(Ordering::Relaxed));
+        }
+        bg.insert(id, proc);
         Ok(id)
     })
     .await
@@ -455,7 +466,7 @@ pub fn shell_bg_logs(
     let proc = state
         .bg
         .read()
-        .unwrap()
+        .unwrap_or_else(|e| e.into_inner())
         .get(&handle)
         .cloned()
         .ok_or_else(|| "no background handle".to_string())?;
@@ -464,7 +475,12 @@ pub fn shell_bg_logs(
 
 #[tauri::command]
 pub fn shell_bg_kill(state: tauri::State<ShellState>, handle: u32) -> Result<(), String> {
-    if let Some(proc) = state.bg.read().unwrap().get(&handle).cloned() {
+    if let Some(proc) = state
+        .bg
+        .write()
+        .unwrap_or_else(|e| e.into_inner())
+        .remove(&handle)
+    {
         proc.kill();
     }
     Ok(())

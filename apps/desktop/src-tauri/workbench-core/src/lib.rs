@@ -443,6 +443,9 @@ pub fn event(app: &tauri::AppHandle, event: &tauri::RunEvent) {
                     if let Some(state) = app.try_state::<shell::ShellState>() {
                         state.kill_all();
                     }
+                    if let Some(state) = app.try_state::<pty::PtyState>() {
+                        state.kill_all();
+                    }
                     if let Some(state) = app.try_state::<control::ControlState>() {
                         state.shutdown();
                     }

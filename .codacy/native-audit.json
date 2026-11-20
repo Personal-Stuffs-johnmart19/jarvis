@@ -506,12 +506,12 @@
     },
     {
       "path": "apps/desktop/src-tauri/workbench-core/src/modules/fs/mutate.rs",
-      "sha256": "28ac8cdc5417446ef002e739289c1bc78c79fd8ddc7952eb3e8201dc4f59cc25",
+      "sha256": "49aff4aa3bfde41a7555fb56dda2609da989eedebbe6a5026377864c95f93206",
       "findings": [
         {
           "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
-          "line": 143,
-          "end_line": 143,
+          "line": 149,
+          "end_line": 149,
           "function": "rename_no_replace",
           "line_sha256": "b87d43579a993f4c98fbe5d2ef7a907c174c3bb33e91de17308a9ffe0767d6bb",
           "span_sha256": "b87d43579a993f4c98fbe5d2ef7a907c174c3bb33e91de17308a9ffe0767d6bb",
@@ -519,8 +519,8 @@
         },
         {
           "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
-          "line": 155,
-          "end_line": 163,
+          "line": 161,
+          "end_line": 169,
           "function": "rename_no_replace",
           "line_sha256": "f8f1d4cfbc34bc4907735f1b88447ec09568c740ef9bdac9da8db4a4360a0e37",
           "span_sha256": "bac29e19ed216829fd57ede6ee1869f40662839cfe6603194ef16d89de280cb6",
@@ -528,8 +528,8 @@
         },
         {
           "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
-          "line": 186,
-          "end_line": 186,
+          "line": 192,
+          "end_line": 192,
           "function": "move_file_windows",
           "line_sha256": "153d354eabfe558eccc4483f3d3741006e2e616a73d4f61dba4e359ae5fd3dac",
           "span_sha256": "153d354eabfe558eccc4483f3d3741006e2e616a73d4f61dba4e359ae5fd3dac",
@@ -782,12 +782,12 @@
     },
     {
       "path": "apps/desktop/src-tauri/workbench-core/src/modules/pty/mod.rs",
-      "sha256": "617bbaa7ec04be3c01c6d985802d8082c135288d2134cd336c10c1ec00bf36b9",
+      "sha256": "cf4d798ba9dba73e2deed8f5cd1a76a4d44c19c98d1b9cb788e86706b4d963c0",
       "findings": [
         {
           "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
-          "line": 665,
-          "end_line": 668,
+          "line": 677,
+          "end_line": 680,
           "function": "destroying_a_webview_closes_exactly_its_terminals",
           "line_sha256": "fe58bb62f2b85a1281c05de84bb52a9108571e595d85736cd03ad5895180317c",
           "span_sha256": "00669a3f3c86c38a60f30a2768553517f19aa302a70baaf0c11c8119af8372ed",
@@ -1190,12 +1190,12 @@
     },
     {
       "path": "apps/desktop/src-tauri/workbench-core/src/modules/fs/assets.rs",
-      "sha256": "7805d1eaa1942480ddbcfc2c4a9159a172ef12ee148fcad448aa0efe29a6fd62",
+      "sha256": "d6f490efbbe05efe9605adf6422432a150ec6267331e75e3a87d98bb84d05422",
       "findings": [
         {
           "rule_id": "Semgrep_rust.lang.security.unsafe-usage.unsafe-usage",
-          "line": 292,
-          "end_line": 292,
+          "line": 299,
+          "end_line": 299,
           "function": "opened_path",
           "line_sha256": "86bf288c75bbaeb2d2df31ac6d1ae6505d8856ec50312f93b716ffc321b3d81f",
           "span_sha256": "86bf288c75bbaeb2d2df31ac6d1ae6505d8856ec50312f93b716ffc321b3d81f",

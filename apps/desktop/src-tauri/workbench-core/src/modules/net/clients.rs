@@ -144,7 +144,7 @@ pub fn redirect_decision(
     // Local provider payloads must never follow a redirect to another origin.
     if let Some(previous) = last_previous {
         let local = previous.host_str().is_some_and(|host| host == "localhost"
-            || host.trim_matches(['[', ']']).parse::<IpAddr>().is_ok_and(|ip| ip.is_loopback()));
+            || host.trim_matches(['[', ']']).parse::<IpAddr>().is_ok_and(|ip| ip_kind(ip) == IpKind::Loopback));
         if local && previous.origin() != next.origin() {
             return RedirectDecision::Stop;
         }
@@ -195,7 +195,7 @@ fn build_client(key: &ClientKey) -> Result<reqwest::Client, String> {
     ensure_crypto_provider();
     let mut builder = reqwest::Client::builder().connect_timeout(Duration::from_secs(10));
     // Loopback model payloads must not leave the machine through environment proxies.
-    if key.host == "localhost" || key.host.trim_matches(['[', ']']).parse::<IpAddr>().is_ok_and(|ip| ip.is_loopback()) {
+    if key.host == "localhost" || key.host.trim_matches(['[', ']']).parse::<IpAddr>().is_ok_and(|ip| ip_kind(ip) == IpKind::Loopback) {
         builder = builder.no_proxy();
     }
     // Pin the resolver to the addresses that passed classification. Without

@@ -126,6 +126,18 @@ impl PtyState {
         }
     }
 
+    /// Application exit: reap every remaining PTY session across all webviews.
+    pub fn kill_all(&self) {
+        let all: Vec<(u32, Arc<Session>)> = {
+            let mut sessions = self.sessions.write().unwrap_or_else(|e| e.into_inner());
+            sessions.drain().collect()
+        };
+        for (id, session) in all {
+            self.hub.submit(Command::Unregister { id });
+            reap(id, session, "application exit");
+        }
+    }
+
     /// Native window occlusion or system sleep: every terminal of the window
     /// drops to the occluded cadence without a frontend round trip.
     pub fn set_window_hidden(&self, label: &str, hidden: bool) {

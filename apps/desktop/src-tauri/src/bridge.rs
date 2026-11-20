@@ -313,7 +313,14 @@ impl Bridge {
             .spawn()
             .map_err(|_| "Could not start the Python backend.".to_string())?;
         #[cfg(windows)]
-        let job = crate::job::ProcessJob::create_for(child.id()).map_err(|e| e.to_string())?;
+        let job = match crate::job::ProcessJob::create_for(child.id()) {
+            Ok(job) => job,
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(error.to_string());
+            }
+        };
         let input = child.stdin.take();
         let output = child.stdout.take().ok_or("Python output channel is unavailable.")?;
         let bridge = Self {
@@ -329,12 +336,13 @@ impl Bridge {
         let state = bridge.clone();
         let handle = app.clone();
         std::thread::spawn(move || {
+            const MAX_LINE_BYTES: usize = 16 * 1024 * 1024;
             let mut reader = BufReader::new(output);
             loop {
                 let mut bytes = Vec::new();
-                let read =
-                    std::io::Read::take(&mut reader, 1_000_001).read_until(b'\n', &mut bytes);
-                if !matches!(read,Ok(n) if n>0) || bytes.len() > 1_000_000 {
+                let read = std::io::Read::take(&mut reader, (MAX_LINE_BYTES + 1) as u64)
+                    .read_until(b'\n', &mut bytes);
+                if !matches!(read, Ok(n) if n > 0) || bytes.len() > MAX_LINE_BYTES {
                     break;
                 }
                 let Ok(line) = String::from_utf8(bytes) else {
@@ -346,22 +354,32 @@ impl Bridge {
                 if value.get("event").is_some() {
                     let _ = handle.emit("backend-event", &value);
                 } else if let Some(id) = value.get("id").and_then(Value::as_u64) {
-                    if let Some(sender) = state.inner.pending.lock().unwrap().remove(&id) {
+                    if let Some(sender) = state
+                        .inner
+                        .pending
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .remove(&id)
+                    {
                         let response = match value.get("error") {
-                            Some(error) => {
-                                Err(error.clone())
-                            }
+                            Some(error) => Err(error.clone()),
                             None => Ok(value.get("result").cloned().unwrap_or(Value::Null)),
                         };
                         let _ = sender.send(response);
                     }
                 }
             }
-            let pending = std::mem::take(&mut *state.inner.pending.lock().unwrap());
+            let pending = std::mem::take(
+                &mut *state
+                    .inner
+                    .pending
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()),
+            );
             for (_, sender) in pending {
                 let _ = sender.send(Err(backend_disconnected_error()));
             }
-            let _=handle.emit("backend-event", backend_stopped_event());
+            let _ = handle.emit("backend-event", backend_stopped_event());
         });
         Ok(bridge)
     }
@@ -425,14 +443,14 @@ impl Bridge {
         }
         let (sender, receiver) = oneshot::channel();
         {
-            let mut pending = self.inner.pending.lock().unwrap();
+            let mut pending = self.inner.pending.lock().unwrap_or_else(|e| e.into_inner());
             if pending.len() >= backend_pending_limit(&method) {
                 return Err("The application is busy.".into());
             }
             pending.insert(id, sender);
         }
         let written = {
-            let mut input = self.inner.input.lock().unwrap();
+            let mut input = self.inner.input.lock().unwrap_or_else(|e| e.into_inner());
             match input.as_mut() {
                 Some(stream) => stream
                     .write_all(message.as_bytes())
@@ -444,19 +462,41 @@ impl Bridge {
             }
         };
         if written.is_err() {
-            self.inner.pending.lock().unwrap().remove(&id);
+            self.inner
+                .pending
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .remove(&id);
             return Err("Backend is unavailable.".into());
         }
         // First local embedding can download verified weights on a slow connection.
         let wait_seconds = if method == "api.embed" || method == "translation.run" || method == "llama.start" || method == "managed_chat.resolve" || method == "documents.import" || method == "documents.embed" || method == "documents.rebuild" { 900 } else { 190 };
         match tokio::time::timeout(Duration::from_secs(wait_seconds), receiver).await {
             Ok(Ok(reply)) => reply,
-            _ => {
-                self.inner.pending.lock().unwrap().remove(&id);
+            Ok(Err(_)) => {
+                self.inner
+                    .pending
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .remove(&id);
+                Err(backend_disconnected_error())
+            }
+            Err(_) => {
+                self.inner
+                    .pending
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .remove(&id);
                 if let Some((cancel_method, request_id)) = cancel_request {
                     let cancel_id = self.inner.sequence.fetch_add(1, Ordering::Relaxed);
                     let cancel = json!({"version":1,"id":cancel_id,"method":cancel_method,"params":{"request_id":request_id}}).to_string() + "\n";
-                    if let Some(stream) = self.inner.input.lock().unwrap().as_mut() {
+                    if let Some(stream) = self
+                        .inner
+                        .input
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .as_mut()
+                    {
                         let _ = stream.write_all(cancel.as_bytes()).and_then(|_| stream.flush());
                     }
                 }
@@ -465,7 +505,11 @@ impl Bridge {
         }
     }
     pub fn shutdown(&self) {
-        self.inner.input.lock().unwrap().take();
+        self.inner
+            .input
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
         if let Ok(mut child) = self.inner.child.lock() {
             for _ in 0..150 {
                 if child.try_wait().ok().flatten().is_some() {

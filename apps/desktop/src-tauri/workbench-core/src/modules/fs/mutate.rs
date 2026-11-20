@@ -70,6 +70,12 @@ fn resolve_authorized_root(
 }
 
 fn authorize_mutation_entry(path: &Path, root: &Path) -> Result<(), String> {
+    if path.file_name().is_none() {
+        return Err(format!(
+            "path must name an entry inside the authorized workspace: {}",
+            path.display()
+        ));
+    }
     let parent = path
         .parent()
         .ok_or_else(|| format!("path has no parent: {}", path.display()))?;
@@ -250,13 +256,19 @@ pub async fn fs_create_file(
 }
 
 fn create_file(p: &Path) -> Result<(), String> {
-    if p.exists() {
-        return Err(format!("already exists: {}", p.display()));
-    }
-    std::fs::write(p, "").map_err(|e| {
-        log::debug!("fs_create_file({}) failed: {e}", p.display());
-        e.to_string()
-    })
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(p)
+        .map(|_| ())
+        .map_err(|e| {
+            if e.kind() == io::ErrorKind::AlreadyExists {
+                format!("already exists: {}", p.display())
+            } else {
+                log::debug!("fs_create_file({}) failed: {e}", p.display());
+                e.to_string()
+            }
+        })
 }
 
 /// Creates a new directory. Fails if the directory already exists.
@@ -311,19 +323,20 @@ pub async fn fs_rename(
 }
 
 fn rename(from_p: &Path, to_p: &Path) -> Result<(), String> {
-    if !from_p.exists() {
+    if std::fs::symlink_metadata(from_p).is_err() {
         return Err(format!("not found: {}", from_p.display()));
     }
-    if to_p.exists() {
-        return Err(format!("already exists: {}", to_p.display()));
-    }
-    std::fs::rename(from_p, to_p).map_err(|e| {
-        log::debug!(
-            "fs_rename({} -> {}) failed: {e}",
-            from_p.display(),
-            to_p.display()
-        );
-        e.to_string()
+    rename_no_replace(from_p, to_p).map_err(|e| {
+        if e.kind() == io::ErrorKind::AlreadyExists {
+            format!("already exists: {}", to_p.display())
+        } else {
+            log::debug!(
+                "fs_rename({} -> {}) failed: {e}",
+                from_p.display(),
+                to_p.display()
+            );
+            e.to_string()
+        }
     })
 }
 
@@ -722,6 +735,30 @@ mod tests {
         assert_eq!(result.failed, 1);
         assert!(!first.exists());
         assert!(!second.exists());
+    }
+
+    #[test]
+    fn mutation_entry_rejects_parent_and_current_dir_escape() {
+        let outer = tempfile::tempdir().unwrap();
+        let workspace = outer.path().join("workspace");
+        std::fs::create_dir(&workspace).unwrap();
+        let sibling = outer.path().join("outside.txt");
+        std::fs::write(&sibling, b"keep").unwrap();
+        let root = std::fs::canonicalize(&workspace).unwrap();
+
+        let escape_parent = workspace.join("..");
+        let escape_self = workspace.join(".");
+        let result = fs_delete_batch_impl(
+            vec![s(escape_parent.clone()), s(escape_self.clone())],
+            &root,
+            &WorkspaceEnv::Local,
+        );
+        assert!(result.deleted.is_empty());
+        assert_eq!(result.failed, 2);
+        assert!(sibling.exists());
+        assert!(workspace.exists());
+        assert!(authorize_mutation_entry(&escape_parent, &root).is_err());
+        assert!(authorize_mutation_entry(&escape_self, &root).is_err());
     }
 
     // Deleting a symlink that points at a directory must remove only the link,

@@ -214,7 +214,14 @@ fn respond(
             Ok::<_, String>((ranges[0].start, ranges[0].length.min(1024 * 1024)))
         })
         .transpose()?;
-    let (start, length) = range.unwrap_or((0, size));
+    const MAX_FULL_ASSET_BYTES: u64 = 64 * 1024 * 1024;
+    let (start, length) = match range {
+        Some(r) => r,
+        None if size > MAX_FULL_ASSET_BYTES => {
+            return Err("asset exceeds non-range read limit; send a Range request".into());
+        }
+        None => (0, size),
+    };
     let mut body = Vec::new();
     if request.method() != "HEAD" {
         file.seek(SeekFrom::Start(start))

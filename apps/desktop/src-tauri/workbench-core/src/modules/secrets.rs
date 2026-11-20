@@ -524,14 +524,16 @@ fn get_all_secrets(
     #[cfg(not(target_os = "linux"))]
     {
         let _ = (app, state);
-        Ok(accounts
-            .into_iter()
-            .map(|a| {
-                entry(service, &a)
-                    .ok()
-                    .and_then(|e| e.get_password().ok())
-            })
-            .collect())
+        let mut out = Vec::with_capacity(accounts.len());
+        for a in accounts {
+            let e = entry(service, &a)?;
+            match e.get_password() {
+                Ok(v) => out.push(Some(v)),
+                Err(keyring::Error::NoEntry) => out.push(None),
+                Err(err) => return Err(format!("keyring read failed: {err}")),
+            }
+        }
+        Ok(out)
     }
 }
 
