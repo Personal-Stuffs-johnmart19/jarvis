@@ -296,7 +296,7 @@ class Handler(BaseHTTPRequestHandler):
                 args = {"path":str(Path(__file__).resolve().parents[2]/".cache/desktop-test/shared-agent/missing-loop-qa.xml")}
             else:
                 assert not payload.get("tools"), "Final failure explanation must not expose tools"
-                assert "File lookup made no progress" in json.dumps(messages)
+                assert "Information lookup made no progress" in json.dumps(messages)
                 answer = "READ_LOOP_BOUNDED_QA"
         elif "STOP_PROCESS_QA:" in text:
             spec = json.loads(text.split("STOP_PROCESS_QA:", 1)[1])
@@ -369,7 +369,9 @@ class Handler(BaseHTTPRequestHandler):
                 )
             }
             if tools:
-                answer = json.loads(tools[-1]["content"])["content"]
+                parsed = json.loads(tools[-1]["content"])
+                assert "content" in parsed, parsed
+                answer = parsed["content"]
         elif "SHARED_APPROVED_WRITE" in text:
             action = "jarvis_action"
             args = {

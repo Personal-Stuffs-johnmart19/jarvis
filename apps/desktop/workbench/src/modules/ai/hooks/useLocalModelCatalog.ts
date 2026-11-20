@@ -79,16 +79,16 @@ export function useLocalModelCatalog(baseURL: string, refresh = 0) {
   const url = baseURL.trim();
   const revision = useModelLifecycleRevision(refresh);
   const freshness = String(revision);
-  const key = JSON.stringify([url, freshness]);
-  const [result, setResult] = useState<{ key: string; catalog: Catalog }>();
+  const [result, setResult] = useState<{ url: string; catalog: Catalog }>();
   useEffect(() => {
     let active = true;
+    if (!url) return;
     void discoverLocalModels(url, freshness).then((catalog) => {
-      if (active) setResult({ key, catalog });
+      if (active) setResult({ url, catalog });
     });
     return () => { active = false; };
-  }, [url, freshness, key]);
-  return result?.key === key ? result.catalog : empty;
+  }, [url, freshness]);
+  return url && result?.url === url ? result.catalog : empty;
 }
 
 const emptyOllama: Awaited<ReturnType<typeof ollamaCatalog>> = [];
@@ -98,7 +98,7 @@ export function useOllamaModelCatalog(baseURL: string, refresh = 0) {
   const revision = useModelLifecycleRevision(refresh);
   const freshness = String(revision);
   const key = JSON.stringify([url, freshness]);
-  const [result, setResult] = useState<{ key: string; models: typeof emptyOllama }>();
+  const [result, setResult] = useState<{ url: string; models: typeof emptyOllama }>();
   useEffect(() => {
     let active = true;
     if (!url) return;
@@ -109,10 +109,10 @@ export function useOllamaModelCatalog(baseURL: string, refresh = 0) {
       const current = request;
       void current.finally(() => { if (pendingOllama.get(key) === current) pendingOllama.delete(key); });
     }
-    void request.then(models => { if (active) setResult({ key, models }); });
+    void request.then(models => { if (active) setResult({ url, models }); });
     return () => { active = false; };
   }, [url, key]);
-  return result?.key === key ? result.models : emptyOllama;
+  return url && result?.url === url ? result.models : emptyOllama;
 }
 
 export { discoverManagedModels } from "../lib/managedModels";
@@ -120,11 +120,11 @@ const emptyManaged: ManagedModel[] = [];
 export function useManagedModelCatalog(refresh = 0) {
   const revision = useModelLifecycleRevision(refresh);
   const key = String(revision);
-  const [result, setResult] = useState<{ key: string; models: ManagedModel[] }>();
+  const [models, setModels] = useState<ManagedModel[]>(emptyManaged);
   useEffect(() => {
     let active = true;
-    void discoverManagedModels(key).then(models => { if (active) setResult({ key, models }); }).catch(() => { if (active) setResult({ key, models: [] }); });
+    void discoverManagedModels(key).then(next => { if (active) setModels(next); }).catch(() => { if (active) setModels(emptyManaged); });
     return () => { active = false; };
   }, [key]);
-  return result?.key === key ? result.models : emptyManaged;
+  return models;
 }

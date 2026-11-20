@@ -649,8 +649,8 @@ function DefaultsBlock({
       </p>
       <Button variant="outline" onClick={() => void openSettingsWindow("integrations")}>{t("Configure integrations")}</Button>
       <div className="flex flex-col gap-2.5 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5">
-        <FieldRow label={translateMessage("Chat model")}>{(inputId) => <>
-          <DefaultModelPicker id={inputId}
+        <FieldRow label={translateMessage("Chat model")} staticLabel>{() => <>
+          <DefaultModelPicker
             defaultModel={defaultModel}
             customEndpoints={customEndpoints}
             availableModels={availableModels}
@@ -668,12 +668,10 @@ function DefaultsBlock({
 }
 
 function DefaultModelPicker({
-  id,
   defaultModel,
   customEndpoints,
   availableModels,
 }: {
-  id: string;
   defaultModel: ModelId;
   customEndpoints: readonly CustomEndpoint[];
   availableModels: readonly ModelInfo[];
@@ -693,7 +691,6 @@ function DefaultModelPicker({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          id={id}
           variant="outline"
           className="h-8 flex-1 justify-between gap-2 px-2.5 text-[11.5px]"
         >
@@ -1736,10 +1733,10 @@ function VoiceBlock({ setup, keys }: { setup: boolean; keys: KeysMap }) {
       </div>
 
       {!setup && <>
-      <FieldRow label={translateMessage("Provider")}>{(inputId) => <>
+      <FieldRow label={translateMessage("Provider")} staticLabel>{() => <>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button id={inputId}
+            <Button
               variant="outline"
               className="h-8 flex-1 justify-between gap-2 px-2.5 text-[11.5px]"
             >

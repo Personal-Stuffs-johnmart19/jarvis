@@ -775,6 +775,7 @@ try:
         snapshot = page.evaluate("""async()=>{const s=await window.__JARVIS_NATIVE__.store.load('terax-settings.json',{defaults:{}});const out={};for(const k of ['lmstudioBaseURL','lmstudioModelId','lmstudioReasoning','defaultModelId'])out[k]=(await s.get(k))??null;return out;}""")
         page.evaluate("""async base=>{const s=await window.__JARVIS_NATIVE__.store.load('terax-settings.json',{defaults:{}});for(const[k,v]of Object.entries({lmstudioBaseURL:base,lmstudioModelId:'google/gemma-4-e4b',lmstudioReasoning:'off',defaultModelId:'gemini-3.5-flash-lite'}))await s.set(k,v);await s.save();}""",os.environ.get('JARVIS_QA_MODEL_BASE','http://127.0.0.1:1234/v1'))
         page.reload()
+        page.evaluate("path=>window.__JARVIS_NATIVE__.core.invoke('workspace_authorize',{path,workspace:{kind:'local'}})", str(fixture))
         errors=[]
         page.on('pageerror',lambda e:errors.append(str(e)))
         frame=page.frame_locator('iframe[src="workbench.html"]')
