@@ -99,12 +99,12 @@ class LocalChat:
             session = requests.Session()
             session.trust_env = False
             try:
-                session.get(f"http://127.0.0.1:{self.port}/health", timeout=1)
-            except requests.ConnectionError:
-                pass
-            else:
-                raise RuntimeError(f"Port {self.port} is occupied; no existing server was stopped")
-            try:
+                try:
+                    session.get(f"http://127.0.0.1:{self.port}/health", timeout=1)
+                except requests.ConnectionError:
+                    pass
+                else:
+                    raise RuntimeError(f"Port {self.port} is occupied; no existing server was stopped")
                 for device in (["Vulkan0"] if mode == "vulkan" else ["none"]):
                     if cancelled():
                         raise RuntimeError("Managed model load cancelled")
@@ -135,11 +135,8 @@ class LocalChat:
                                 self.device, self.model = device, str(paths[0])
                                 self.projector, self.mode = projector, mode
                                 if self.persist:
-                                    target = self.settings_path()
-                                    target.parent.mkdir(parents=True, exist_ok=True)
-                                    temporary = target.with_suffix(".tmp")
-                                    temporary.write_text(json.dumps({**managed_settings,"model":self.model,"projector":projector,"mode":mode}), encoding="utf8")
-                                    temporary.replace(target)
+                                    from local_mode.storage import write_json
+                                    write_json(self.settings_path(), {**managed_settings,"model":self.model,"projector":projector,"mode":mode})
                                 return self.status()
                         except requests.RequestException:
                             pass
@@ -152,7 +149,7 @@ class LocalChat:
                         raise RuntimeError("Managed model load cancelled")
                     self.cancel_load.clear()
                 raise OwnedRuntimeError("Local {0} chat failed to start ({1}); see models/llama-chat/server.log. Select CPU explicitly to use CPU chat.", mode, failure)
-            except Exception:
+            except BaseException:
                 self.stop()
                 raise
             finally:

@@ -121,6 +121,7 @@ class GeminiVoice:
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._client = None
+        self._clients: set = set()
         self._cooldown: dict[str, float] = {}
         self._request_slots = threading.BoundedSemaphore(2)
 
@@ -128,13 +129,18 @@ class GeminiVoice:
         # Closing an HTTP client may wait on a transport lock. Never hold the
         # speaker/UI lock or the TTS worker while waiting for that close.
         with self._lock:
-            client, self._client = self._client, None
-        if client is not None:
+            clients = list(self._clients)
+            self._clients.clear()
+            if self._client is not None and self._client not in clients:
+                clients.append(self._client)
+            self._client = None
+        if clients:
             def close():
-                try:
-                    client.close()
-                except Exception:
-                    pass
+                for client in clients:
+                    try:
+                        client.close()
+                    except Exception:
+                        pass
             threading.Thread(target=close, name="Jarvis-TTS-close", daemon=True).start()
 
     close = cancel
@@ -146,10 +152,11 @@ class GeminiVoice:
                 raise CancelledError()
             if time.monotonic() >= deadline:
                 raise TimeoutError("Previous TTS requests are still closing")
+        request_stop = threading.Event()
         result = queue.SimpleQueue()
         def generate():
             try:
-                result.put((True, self._request(model, text, stop)))
+                result.put((True, self._request(model, text, stop, request_stop)))
             except BaseException as error:
                 result.put((False, error))
             finally:
@@ -165,17 +172,32 @@ class GeminiVoice:
                 raise value
             except queue.Empty:
                 if stop.is_set():
+                    request_stop.set()
+                    self.cancel()
                     raise CancelledError()
                 if time.monotonic() >= deadline:
+                    request_stop.set()
+                    self.cancel()
                     raise TimeoutError("Cloud TTS request timed out")
 
-    def _request(self, model: str, text: str, stop: threading.Event) -> bytes:
+    def _request(self, model: str, text: str, stop: threading.Event, request_stop: threading.Event | None = None) -> bytes:
+        def stopped() -> bool:
+            return stop.is_set() or (request_stop is not None and request_stop.is_set())
+
+        def wait_retry(seconds: float) -> None:
+            end = time.monotonic() + seconds
+            while not stopped():
+                remaining = end - time.monotonic()
+                if remaining <= 0:
+                    return
+                stop.wait(min(0.1, remaining))
+
         @retry(
             stop=stop_after_attempt(5),
             wait=wait_exponential(multiplier=1, min=2, max=10),
-            sleep=stop.wait,
+            sleep=wait_retry,
             retry=retry_if_exception(
-                lambda e: not stop.is_set()
+                lambda e: not stopped()
                 and (
                     gemini.is_transient(e)
                     and not (isinstance(e, APIError) and e.code == 429)
@@ -184,13 +206,14 @@ class GeminiVoice:
             reraise=True,
         )
         def attempt() -> bytes:
-            if stop.is_set():
+            if stopped():
                 raise CancelledError()
-            with gemini.create_client(retry_attempts=0) as client:
+            with gemini.create_client(retry_attempts=0, stop=request_stop or stop) as client:
                 with self._lock:
                     self._client = client
+                    self._clients.add(client)
                 try:
-                    if stop.is_set():
+                    if stopped():
                         raise CancelledError()
                     with RequestUsage(model, "tts") as usage:
                         if model == PREVIEW:
@@ -254,6 +277,7 @@ class GeminiVoice:
                         return data
                 finally:
                     with self._lock:
+                        self._clients.discard(client)
                         if self._client is client:
                             self._client = None
 

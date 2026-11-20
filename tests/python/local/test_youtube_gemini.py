@@ -38,7 +38,7 @@ def test_media_verification_requires_progress_sound_and_no_ads(overrides,expecte
 
 def test_ad_wait_is_local_and_restores_content_playback():
     session=ChromeSession.__new__(ChromeSession);session.profile="Profile 2";session.lock=threading.RLock()
-    session.tool=Mock(return_value={"ok":True})
+    session.tool=Mock(return_value={"ok":True,"text":'### Result\n{"requested":true}'})
     session.media_state=Mock(side_effect=[
         {"ok":True,"verified":False,"media":{"ad_showing":True}},
         {"ok":True,"verified":False,"media":{"ad_showing":False,"muted":True}},

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import httpx
 from local_mode.network.network_preferences import read_network_preferences, network_options
 from local_mode.network.network_transport import RoutingTransport, NetworkRouteError, is_regional_error
-from local_mode.credentials import KEY_FILE, BOOTSTRAP_FILE, load_key
+from local_mode.credentials import KEY_FILE, BOOTSTRAP_FILE
 from local_mode.api_usage import track_call
 from local_mode.messages import OwnedError, OwnedText
 from google import genai

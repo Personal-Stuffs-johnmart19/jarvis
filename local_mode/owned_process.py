@@ -153,6 +153,9 @@ def _finish_cleanup(process, readers, close_tree, remaining, prior_error, *, win
             finally:
                 try:
                     attempt(lambda: process.stdin.close() if process.stdin and not process.stdin.closed else None)
+                    if not readers:
+                        attempt(lambda: process.stdout.close() if process.stdout and not process.stdout.closed else None)
+                        attempt(lambda: process.stderr.close() if process.stderr and not process.stderr.closed else None)
                 finally:
                     for reader in readers:
                         attempt(lambda reader=reader: reader.join(timeout=min(2, remaining())))

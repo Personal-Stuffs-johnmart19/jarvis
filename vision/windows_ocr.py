@@ -2,6 +2,7 @@
 from __future__ import annotations
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import re
 from time import time
 from typing import Any
 from .vision_events import VisionEvent
@@ -19,7 +20,14 @@ async def _read(frame: Any, language: str) -> list[VisionEvent]:
     from winrt.windows.graphics.imaging import SoftwareBitmap, BitmapPixelFormat, BitmapAlphaMode
     from winrt.windows.security.cryptography import CryptographicBuffer
     available = languages()
-    chosen = next((lang for lang in available if lang.lower().startswith("ru")), None)
+    requested = [p.strip().lower()[:2] for p in re.split(r"[+,;\s]+", language or "") if p.strip()]
+    chosen = None
+    for prefix in requested:
+        chosen = next((lang for lang in available if lang.lower().startswith(prefix)), None)
+        if chosen:
+            break
+    if not chosen:
+        chosen = next((lang for lang in available if lang.lower().startswith("ru")), None)
     engine = OcrEngine.try_create_from_language(Language(chosen)) if chosen else OcrEngine.try_create_from_user_profile_languages()
     if engine is None:
         raise RuntimeError("Windows OCR: нет языкового пакета. Установите русский язык Windows.")
@@ -43,5 +51,8 @@ async def _read(frame: Any, language: str) -> list[VisionEvent]:
 
 def extract(frame: Any, language: str = "rus+eng") -> list[VisionEvent]:
     # WinRT coroutine не должна пересекаться с event loop браузера.
-    with ThreadPoolExecutor(max_workers=1) as pool:
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
         return pool.submit(lambda: asyncio.run(_read(frame, language))).result(timeout=30)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)

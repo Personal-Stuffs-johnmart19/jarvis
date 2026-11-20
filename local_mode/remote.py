@@ -34,12 +34,15 @@ class RemoteServices:
     def _telegram(self, token: str, owner: str) -> None:
         import telegram_bot as tg
         offset = 0
-        # Skip the backlog so a restart never replays completed commands.
-        backlog = tg.get_updates(token, -1, timeout=0)
-        if backlog:
-            offset = max(int(u["update_id"]) for u in backlog) + 1
+        synced = False
         while not self.stop_event.is_set():
             try:
+                if not synced:
+                    # Skip the backlog so a restart never replays completed commands.
+                    backlog = tg.get_updates(token, -1, timeout=0)
+                    if backlog:
+                        offset = max(int(u["update_id"]) for u in backlog) + 1
+                    synced = True
                 for update in tg.get_updates(token, offset, timeout=2):
                     offset = max(offset, int(update["update_id"]) + 1)
                     message = update.get("message", {})

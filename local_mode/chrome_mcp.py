@@ -53,7 +53,11 @@ class ChromeSession:
         self._operation_deadline = deadline
         self._request_cancel = cancel
         self._media_wait_cancel = threading.Event()
-        env = {k:v for k,v in os.environ.items() if k not in {"GEMINI_API_KEY", "GOOGLE_API_KEY", "PLAYWRIGHT_MCP_EXTENSION_TOKEN", "PLAYWRIGHT_MCP_PROFILE_DIR_NAME"}}
+        env = {k:v for k,v in os.environ.items() if k not in {
+            "GEMINI_API_KEY", "GOOGLE_API_KEY", "JARVIS_GEMINI_API_KEY",
+            "JARVIS_TELEGRAM_TOKEN", "PLAYWRIGHT_MCP_EXTENSION_TOKEN",
+            "PLAYWRIGHT_MCP_PROFILE_DIR_NAME",
+        }}
         if token:
             env["PLAYWRIGHT_MCP_EXTENSION_TOKEN"] = token
         # Тот же Node/CLI, что использует python -m playwright, без дочерней
@@ -73,6 +77,8 @@ class ChromeSession:
                         continue
                     try:self.messages.put(json.loads(line))
                     except ValueError:continue
+            except (OSError, ValueError):
+                pass
             finally:self.messages.put(None)
         threading.Thread(target=read,daemon=True,name="ChromeMCPResponses").start()
         try:
@@ -158,7 +164,7 @@ class ChromeSession:
         result = self.tool("browser_evaluate", {"function": function})
         if not result["ok"]:
             raise OwnedValueError("Chrome player: {0}", result["text"])
-        text = result["text"].split("### Result", 1)[-1].lstrip()
+        text = result.get("text", "").split("### Result", 1)[-1].lstrip()
         try:
             state, _ = json.JSONDecoder().raw_decode(text)
         except ValueError as error:
@@ -229,12 +235,12 @@ class ChromeSession:
     def _execute(self, args):
         with self.lock:
             action = args.get("action","snapshot")
-            if args.get("tab_id") and action not in {"select_tab","close_tab"}:
+            if args.get("tab_id") is not None and str(args.get("tab_id")).strip() != "" and action not in {"select_tab","close_tab"}:
                 selected = self.tool("browser_tabs", {"action":"select","index":int(args["tab_id"])})
                 if not selected["ok"]:return selected
             if action in {"list_tabs","new_tab","select_tab","close_tab"}:
                 parameters={"action":{"list_tabs":"list","new_tab":"new","select_tab":"select","close_tab":"close"}[action]}
-                if args.get("tab_id"):parameters["index"]=int(args["tab_id"])
+                if args.get("tab_id") is not None and str(args.get("tab_id")).strip() != "":parameters["index"]=int(args["tab_id"])
                 result=self.tool("browser_tabs",parameters)
                 if action != "new_tab" or not args.get("url") or not result["ok"]:return result
                 action="go_to"

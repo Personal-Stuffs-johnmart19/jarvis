@@ -92,7 +92,9 @@ def test_interactions_uses_shared_client_no_storage_or_duplicate_sdk_retries():
         "local_mode.gemini_voice.gemini.create_client", return_value=nullcontext(client)
     ) as create:
         assert GeminiVoice().request(LITE, "Привет", Event()) == wav()
-    create.assert_called_once_with(retry_attempts=0)
+    create.assert_called_once()
+    assert create.call_args.kwargs.get("retry_attempts") == 0
+    assert create.call_args.kwargs.get("stop") is not None
     kwargs = client.interactions.create.call_args.kwargs
     assert kwargs["model"] == LITE and kwargs["store"] is False
     assert kwargs["input"][0]["content"][0]["text"] == "Привет"

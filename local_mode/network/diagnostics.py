@@ -34,7 +34,7 @@ def _discovery_failure(initial: list[str]) -> OwnedText:
     for reason in initial:
         counts[reason] = counts.get(reason, 0) + 1
     known = ["успех", *_PROBE_MESSAGES]
-    unknown = "; ".join(f"{key}: {value}" for key, value in counts.items() if key not in _PROBE_MESSAGES)
+    unknown = "; ".join(f"{key}: {value}" for key, value in counts.items() if key not in known)
     return OwnedText('No working route was found. Discovery sources available: {0}/{1}; addresses checked: {2}/{3}. Probe outcomes including initial routes: success {4}; proxy authentication {5}; Google region restriction {6}; timeout {7}; HTTP response/format {8}; CONNECT rejection {9}; TLS certificate {10}; connection failure {11}; other network failure {12}. Other diagnostics: {13}. Specify your own HTTP/HTTPS proxy or use a working system connection/VPN.', sources.get("available", 0), sources.get("total", 0), report.get("checked", 0), report.get("candidates", 0), *(counts.get(key, 0) for key in known), unknown)
 
 

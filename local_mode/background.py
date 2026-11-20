@@ -17,7 +17,11 @@ class BackgroundServices:
         self.report = report
         self.path = path or ROOT / "data" / "schedules.json"
         self.lock = threading.Lock()
-        self.items: list[dict[str, Any]] = json.loads(self.path.read_text(encoding="utf-8")) if self.path.exists() else []
+        try:
+            loaded = json.loads(self.path.read_text(encoding="utf-8")) if self.path.exists() else []
+            self.items: list[dict[str, Any]] = loaded if isinstance(loaded, list) else []
+        except Exception:
+            self.items = []
         self.thread: threading.Thread | None = None
 
     def _save(self) -> None:
@@ -48,6 +52,8 @@ class BackgroundServices:
                 return {"ok": True, "schedule": item}
             if action in {"cancel", "delete", "remove"}:
                 before = len(self.items)
+                if args.get("id") is None:
+                    raise OwnedValueError("Schedule cancellation requires an id.")
                 self.items = [i for i in self.items if i["id"] != int(args["id"])]
                 self._save()
                 return {"ok": len(self.items) < before}

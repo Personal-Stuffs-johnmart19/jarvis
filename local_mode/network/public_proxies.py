@@ -154,7 +154,8 @@ def _discover_proxies(*, exclude: set[str] | None = None) -> list[str]:
     counts = Counter()
     checked = 0
     remaining = iter(candidates)
-    with ThreadPoolExecutor(max_workers=BATCH_SIZE) as pool:
+    pool = ThreadPoolExecutor(max_workers=BATCH_SIZE)
+    try:
         pending = {pool.submit(probe_result, route): route for route in
                    [next(remaining, None) for _ in range(BATCH_SIZE)] if route}
         while pending and time.monotonic() < deadline:
@@ -179,6 +180,8 @@ def _discover_proxies(*, exclude: set[str] | None = None) -> list[str]:
                     pending[pool.submit(probe_result, route)] = route
         for future in pending:
             future.cancel()
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
     logger.warning("Результаты проверки: %s.", ", ".join(f"{key}: {value}" for key, value in sorted(counts.items())) or "нет кандидатов")
     _LAST_REPORT = {"candidates": len(candidates), "checked": checked, "reasons": dict(counts), "sources": dict(_LAST_SOURCES)}
     return routes[:MAX_ROUTES]

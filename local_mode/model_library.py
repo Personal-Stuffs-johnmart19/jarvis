@@ -233,47 +233,49 @@ def list_installed_models() -> list[dict[str, Any]]:
         if not kind_dir.is_dir():
             continue
         try:
-            for repo_entry in os.scandir(kind_dir):
-                if not repo_entry.is_dir(follow_symlinks=False):
-                    continue
-                repo_path = Path(repo_entry.path)
-                try:
-                    refuse_symlink(repo_path)
-                    for rev_entry in os.scandir(repo_path):
-                        if not rev_entry.is_dir(follow_symlinks=False):
-                            continue
-                        rev_path = Path(rev_entry.path)
-                        try:
-                            verify_ancestors_no_symlinks(root, rev_path)
-                        except ValueError:
-                            continue
-                        manifest = read_manifest_file(rev_path)
-                        if not manifest or manifest.get("complete") is not True:
-                            continue
-                        # Validate manifest structure and parent alignment
-                        expected_repo_dir = repo_entry.name
-                        try:
-                            validate_manifest_structure(manifest, expected_kind=kind, expected_rev=rev_entry.name)
-                            if repo_dir_name(manifest["repo_id"]) != expected_repo_dir:
-                                continue
-                            for record in manifest["files"]:
-                                weight = ensure_safe_path(rev_path, record["path"])
-                                if not weight.is_file() or weight.stat().st_size != record["size"]:
-                                    raise ValueError("Incomplete installed model files")
-                        except ValueError:
-                            continue
+            with os.scandir(kind_dir) as repo_entries:
+                for repo_entry in repo_entries:
+                    if not repo_entry.is_dir(follow_symlinks=False):
+                        continue
+                    repo_path = Path(repo_entry.path)
+                    try:
+                        refuse_symlink(repo_path)
+                        with os.scandir(repo_path) as rev_entries:
+                            for rev_entry in rev_entries:
+                                if not rev_entry.is_dir(follow_symlinks=False):
+                                    continue
+                                rev_path = Path(rev_entry.path)
+                                try:
+                                    verify_ancestors_no_symlinks(root, rev_path)
+                                except ValueError:
+                                    continue
+                                manifest = read_manifest_file(rev_path)
+                                if not manifest or manifest.get("complete") is not True:
+                                    continue
+                                # Validate manifest structure and parent alignment
+                                expected_repo_dir = repo_entry.name
+                                try:
+                                    validate_manifest_structure(manifest, expected_kind=kind, expected_rev=rev_entry.name)
+                                    if repo_dir_name(manifest["repo_id"]) != expected_repo_dir:
+                                        continue
+                                    for record in manifest["files"]:
+                                        weight = ensure_safe_path(rev_path, record["path"])
+                                        if not weight.is_file() or weight.stat().st_size != record["size"]:
+                                            raise ValueError("Incomplete installed model files")
+                                except ValueError:
+                                    continue
 
-                        installed.append({
-                            "kind": manifest.get("kind", kind),
-                            "repo_id": manifest.get("repo_id"),
-                            "revision": manifest.get("revision", rev_entry.name),
-                            "bundle_id": manifest.get("bundle_id"),
-                            "complete": bool(manifest.get("complete")),
-                            "files": [f["path"] for f in manifest.get("files", []) if isinstance(f, dict) and "path" in f],
-                            "license": manifest.get("license"),
-                        })
-                except (OSError, ValueError):
-                    continue
+                                installed.append({
+                                    "kind": manifest.get("kind", kind),
+                                    "repo_id": manifest.get("repo_id"),
+                                    "revision": manifest.get("revision", rev_entry.name),
+                                    "bundle_id": manifest.get("bundle_id"),
+                                    "complete": bool(manifest.get("complete")),
+                                    "files": [f["path"] for f in manifest.get("files", []) if isinstance(f, dict) and "path" in f],
+                                    "license": manifest.get("license"),
+                                })
+                    except (OSError, ValueError):
+                        continue
         except (OSError, ValueError):
             continue
 

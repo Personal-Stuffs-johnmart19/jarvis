@@ -28,7 +28,7 @@ class OCREngine:
 
     @property
     def is_ready(self) -> bool:
-        return (self._pytesseract is not None or self._windows) and self._error is None
+        return self._pytesseract is not None or self._windows
 
     @property
     def error(self) -> str | None:
@@ -65,7 +65,6 @@ class OCREngine:
                 from .windows_ocr import extract
                 return extract(frame, self.config.languages)
             import cv2
-            import numpy as np
 
             image = frame
             if self.config.scale != 1.0:

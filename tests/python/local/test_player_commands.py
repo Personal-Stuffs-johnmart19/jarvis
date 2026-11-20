@@ -69,7 +69,7 @@ def test_pause_cancels_pending_ad_wait_without_consuming_model_steps():
  session._media_wait_cancel=threading.Event();session.media_state=Mock()
  def call(*args):
   session._media_wait_cancel.set()
-  return {"ok":True}
+  return {"ok":True,"text":'### Result\n{"requested":true}'}
  session.tool=Mock(side_effect=call)
  result=session.execute({"action":"media_play"})
  assert result["cancelled"] and not result["verified"]

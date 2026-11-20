@@ -146,11 +146,13 @@ class LocalSpeaker:
         import comtypes
         import comtypes.client
         comtypes.CoInitialize()
+        engine = None
         try:
             engine = comtypes.client.CreateObject("SAPI.SpVoice", dynamic=True)
             result.extend({"id": "sapi:" + item.Id, "name": "Windows — " + item.GetDescription(),
                            "language": item.GetAttribute("Language")} for item in engine.GetVoices())
         finally:
+            engine = None
             comtypes.CoUninitialize()
         return result
 
@@ -471,6 +473,7 @@ class LocalSpeaker:
             for engine in engines.values():
                 if callable(getattr(engine, "close", None)):
                     engine.close()
+            engines.clear()
             if com_initialized:
                 import comtypes
                 comtypes.CoUninitialize()
@@ -505,8 +508,10 @@ class LocalSpeaker:
         with self._lock:
             self.enabled = False
             self._closing.set()
-            self.cancel()
-            if self._thread and self._thread.is_alive():
+        self.cancel()
+        with self._lock:
+            thread = self._thread
+            if thread and thread.is_alive():
                 self._queue.put_nowait(None)
-        if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=3)
+        if thread and thread.is_alive():
+            thread.join(timeout=3)

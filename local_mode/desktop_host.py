@@ -257,12 +257,17 @@ class DesktopRuntime:
         elif action == "stop":
             from local_mode.embedding_jobs import cancel_all
             cancel_all()
-            self.text_provider.cancel()
-            self.shared_agent.cancel_current()
+            text_provider = getattr(self, "text_provider", None)
+            if text_provider is not None:
+                text_provider.cancel()
+            shared_agent = getattr(self, "shared_agent", None)
+            if shared_agent is not None:
+                shared_agent.cancel_current()
             from agent.task_queue import cancel_existing
             cancel_existing()
-            self.event("tasks.cleared", {})
-            self.emit("agent.stop", {})
+            if hasattr(self, "emit"):
+                self.event("tasks.cleared", {})
+                self.emit("agent.stop", {})
             self.speaker.cancel()
         elif action == "speech_stop":
             self.speaker.cancel()
@@ -766,6 +771,7 @@ class DesktopRuntime:
                         ):
                             raise ValueError("Enter an API key without spaces.")
                         save_key(key)
+                        os.environ.pop("GOOGLE_API_KEY", None)
                         os.environ["GEMINI_API_KEY"] = key
                         if bot.client:
                             bot.client.close()

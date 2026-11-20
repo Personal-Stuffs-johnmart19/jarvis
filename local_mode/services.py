@@ -84,6 +84,7 @@ class ServiceRegistry:
             for s in self.services.values()
         ]
         self.workspace = ()
+        self.workspace_search = ()
         self.descriptors = tuple(descriptors)
         self.search = tuple(
             json.dumps(d, ensure_ascii=False).casefold() for d in descriptors
@@ -125,7 +126,7 @@ class ServiceRegistry:
             raise ValueError("Invalid catalogue query")
         words = query.casefold().split()
         descriptors = self.all_descriptors()
-        searchable_items = (json.dumps(d, ensure_ascii=False).casefold() for d in descriptors)
+        searchable_items = self.search + self.workspace_search
         matches = [
             d
             for d, searchable in zip(descriptors, searchable_items)
@@ -193,6 +194,9 @@ class ServiceRegistry:
                 }
             )
         self.workspace = tuple(cleaned)
+        self.workspace_search = tuple(
+            json.dumps(d, ensure_ascii=False).casefold() for d in cleaned
+        )
         self.revision = sha256(json.dumps(self.all_descriptors(), sort_keys=True).encode()).hexdigest()[:16]
         return {"ok": True}
 

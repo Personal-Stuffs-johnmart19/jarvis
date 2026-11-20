@@ -94,7 +94,7 @@ def test_gpu_http_500_reports_reason_and_keeps_details(tmp_path):
     engine.client=httpx.Client(transport=httpx.MockTransport(lambda req:httpx.Response(500,json={"error":{"message":"unsupported Vulkan shader"}})))
     (tmp_path/".cache").mkdir()
     try:
-        with patch.object(module,"ROOT",tmp_path),pytest.raises(RuntimeError,match="Неподдерживаемая"):
+        with patch.object(module,"ROOT",tmp_path),pytest.raises(RuntimeError,match="unsupported Vulkan"):
             engine.wav("Проверка")
         assert "unsupported Vulkan shader" in (tmp_path/".cache/supertonic-last-error.txt").read_text(encoding="utf-8")
     finally:engine.client.close()

@@ -32,6 +32,9 @@ def connection():
     db.execute(
         "CREATE TABLE IF NOT EXISTS chunks (document_id TEXT, idx INTEGER, start INTEGER, end INTEGER, provider TEXT, model TEXT, dimensions INTEGER, vector TEXT, PRIMARY KEY (document_id, idx))"
     )
+    db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_chunks_identity ON chunks (provider, model, dimensions)"
+    )
     db.execute("CREATE TABLE IF NOT EXISTS document_sources (document_id TEXT PRIMARY KEY, provenance TEXT NOT NULL)")
     try:
         with db:
@@ -297,11 +300,12 @@ def search(
                 "ORDER BY documents.created DESC"
             ):
                 embedding_jobs.check()
-                haystack = (row["name"] + " " + row["text"]).casefold()
+                text_folded = row["text"].casefold()
+                haystack = row["name"].casefold() + " " + text_folded
                 score = sum(haystack.count(word) for word in words) if words else 1
                 if not score:
                     continue
-                positions = [row["text"].casefold().find(w) for w in words]
+                positions = [text_folded.find(w) for w in words]
                 offset = max(0, min((p for p in positions if p >= 0), default=0) - 150)
                 end = offset + 1200
                 record_hit(
@@ -327,15 +331,16 @@ def search(
             if total_indexed > 0 and active_count == 0 and len(hits) == 0:
                 if auto_rebuild:
                     rebuild_result = rebuild(backend=backend)
-                    response["rebuilt"] = rebuild_result
                     # Re-run search now that index has been rebuilt under current identity
-                    return search(
+                    rebuilt_response = search(
                         query=query,
                         limit=limit,
                         semantic=semantic,
                         backend=backend,
                         auto_rebuild=False,
                     )
+                    rebuilt_response["rebuilt"] = rebuild_result
+                    return rebuilt_response
                 response["index_mismatch"] = True
                 response["mismatch_details"] = {
                     "current": ident,

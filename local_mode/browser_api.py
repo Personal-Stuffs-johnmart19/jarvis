@@ -27,7 +27,10 @@ class BrowserAPI:
         # Only visible elements; input values and passwords are not sent to the model.
         nodes = page.locator('a[href], button, input:not([type=password]):not([type=hidden]), textarea, select, [role=button], [role=link]')
         for _, handle in self.refs.values():
-            await handle.dispose()
+            try:
+                await handle.dispose()
+            except Exception:
+                pass
         self.refs.clear()
         elements = []
         for index in range(min(await nodes.count(), 250)):
@@ -60,6 +63,7 @@ class BrowserAPI:
         await controller._launch_browser_if_needed()
         context = controller._context
         pages = [p for p in context.pages if not p.is_closed()]
+        self.tabs = {k: p for k, p in self.tabs.items() if p in pages and not p.is_closed()}
         for page in pages:
             if page not in self.tabs.values():
                 self.tabs[secrets.token_hex(5)] = page
@@ -141,6 +145,7 @@ class BrowserAPI:
             await page.reload(wait_until="domcontentloaded")
         elif action == "close_tab":
             await page.close()
+            self.tabs = {k: p for k, p in self.tabs.items() if p != page and not p.is_closed()}
             self.refs.clear()
             return {"ok": True, "result": OwnedText("Tab closed.")}
         elif action in {"click", "smart_click", "type", "smart_type"}:
@@ -200,14 +205,15 @@ class BrowserAPI:
         from local_mode.browser_profiles import profiles
         from local_mode.config import Settings
         from local_mode import chrome_mcp
-        available, current = profiles(Settings.from_env().browser_channel)
+        channel = Settings.from_env().browser_channel
+        available, current = profiles(channel)
         from local_mode.playback_queue import QUEUE_ACTIONS, playback_queue
         if args.get("action") in QUEUE_ACTIONS:
             profile = args.get("profile_id") or (prefs["profile"] if prefs["mode"] == "specific" else current)
             target = {"profile_id":profile} if prefs["mode"] != "new" or args.get("profile_id") else {}
             return playback_queue().execute(args, self, target, self.report)
         if args.get("action") == "list_profiles":
-            return {"ok":True,"profiles":[{**item,"extension_installed":chrome_mcp.installed(item["id"],Settings.from_env().browser_channel)} for item in available]}
+            return {"ok":True,"profiles":[{**item,"extension_installed":chrome_mcp.installed(item["id"],channel)} for item in available]}
         explicit = args.get("profile_id")
         if explicit or prefs["mode"] != "new":
             profile = explicit or (prefs["profile"] if prefs["mode"] == "specific" else current)
@@ -218,14 +224,13 @@ class BrowserAPI:
                 return {"ok":True,"result":OwnedText("Connection closed; the main Chrome browser remains running.")}
             if args.get("action") in {"go_to", "search"} and not explicit:
                 from local_mode.chrome_credentials import load_token
-                channel = Settings.from_env().browser_channel
                 if not chrome_mcp.installed(profile, channel) or not load_token(profile, channel):
                     from local_mode.browser_profiles import open_url
                     url = ("https://www.google.com/search?q=" + quote_plus(args.get("query", ""))
                            if args["action"] == "search" else args.get("url", ""))
                     open_url(url, channel)
                     return {"ok": True, "verified": False, "reply": OwnedText("Opened in the selected browser profile: {0}. Tab content has not been verified.", url)}
-            return chrome_mcp.execute(profile,args,Settings.from_env().browser_channel)
+            return chrome_mcp.execute(profile,args,channel)
         if args.get("incognito"):
             return {"ok": False, "error": OwnedText("Private sessions are not supported by the shared browser backend.")}
         legacy._ensure_started()

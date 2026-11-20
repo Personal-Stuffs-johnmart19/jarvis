@@ -75,7 +75,8 @@ class CameraManager:
         if thread and thread.is_alive():
             thread.join(timeout=timeout)
         self._thread = None
-        self._release_capture()
+        if thread is None or not thread.is_alive():
+            self._release_capture()
 
     def latest(self) -> FramePacket | None:
         with self._lock:

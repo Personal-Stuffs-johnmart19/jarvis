@@ -13,7 +13,7 @@ import json
 import os
 import re
 from datetime import datetime
-from threading import Lock
+from threading import RLock
 from pathlib import Path
 import sys
 
@@ -26,7 +26,7 @@ def get_base_dir() -> Path:
 
 BASE_DIR         = get_base_dir()
 MEMORY_PATH      = BASE_DIR / "memory" / "long_term.json"
-_lock            = Lock()
+_lock            = RLock()
 MAX_VALUE_LENGTH = 400
 
 # Values that look like secrets are never stored — passwords, API keys,
@@ -60,10 +60,9 @@ def _empty_memory() -> dict:
 
 
 def load_memory() -> dict:
-    if not MEMORY_PATH.exists():
-        return _empty_memory()
-
     with _lock:
+        if not MEMORY_PATH.exists():
+            return _empty_memory()
         try:
             data = json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
             if isinstance(data, dict):
@@ -133,12 +132,13 @@ def update_memory(memory_update: dict) -> dict:
     if not isinstance(memory_update, dict) or not memory_update:
         return load_memory()
 
-    memory = load_memory()
-    if _recursive_update(memory, memory_update):
-        prune_memory(memory)
-        save_memory(memory)
-        print(f"[Memory] 💾 Saved: {list(memory_update.keys())}")
-    return memory
+    with _lock:
+        memory = load_memory()
+        if _recursive_update(memory, memory_update):
+            prune_memory(memory)
+            save_memory(memory)
+            print(f"[Memory] 💾 Saved: {list(memory_update.keys())}")
+        return memory
 
 
 def prune_memory(memory: dict, cap: int = 40) -> None:
@@ -342,14 +342,15 @@ def remember(key: str, value: str, category: str = "notes") -> str:
 
 
 def forget(key: str, category: str = "notes") -> str:
-    memory = load_memory()
-    cat    = memory.get(category, {})
-    if key in cat:
-        del cat[key]
-        memory[category] = cat
-        save_memory(memory)
-        return f"Forgotten: {category}/{key}"
-    return f"Not found: {category}/{key}"
+    with _lock:
+        memory = load_memory()
+        cat    = memory.get(category, {})
+        if key in cat:
+            del cat[key]
+            memory[category] = cat
+            save_memory(memory)
+            return f"Forgotten: {category}/{key}"
+        return f"Not found: {category}/{key}"
 
 
 def search_memory(query: str, category: str = "") -> str:
@@ -389,13 +390,14 @@ forget_memory = forget
 def clear_memory(category: str = "") -> str:
     """Clear all long-term memory, or just one category.
     Returns a short confirmation string."""
-    memory = load_memory()
-    cat = category.strip().lower()
-    if cat:
-        if cat in memory:
-            memory[cat] = {}
-            save_memory(memory)
-            return f"Cleared '{cat}' memory."
-        return f"Category '{cat}' not found. Categories: " + ", ".join(memory.keys())
-    save_memory(_empty_memory())
-    return "All memory cleared."
+    with _lock:
+        memory = load_memory()
+        cat = category.strip().lower()
+        if cat:
+            if cat in memory:
+                memory[cat] = {}
+                save_memory(memory)
+                return f"Cleared '{cat}' memory."
+            return f"Category '{cat}' not found. Categories: " + ", ".join(memory.keys())
+        save_memory(_empty_memory())
+        return "All memory cleared."

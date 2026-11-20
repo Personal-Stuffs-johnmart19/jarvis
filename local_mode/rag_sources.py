@@ -115,7 +115,7 @@ def _conversations_root() -> Path:
     base = os.environ.get("APPDATA")
     if os.name != "nt" or not base:
         raise ValueError("Saved desktop chat retrieval is available on Windows only")
-    identifier = "com.mrcrous.jarvis.qa" if "JARVIS_DESKTOP_TEST" in os.environ else "com.mrcrous.jarvis"
+    identifier = "com.mrcrous.jarvis.qa" if os.getenv("JARVIS_DESKTOP_TEST") == "1" else "com.mrcrous.jarvis"
     return Path(base) / identifier / "conversations"
 
 

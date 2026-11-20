@@ -28,12 +28,12 @@ def test_mme_start_failure_falls_back_to_wasapi_native_format():
 def test_no_driver_reports_actionable_russian_error():
     data,_=wav_data()
     with patch("sounddevice.OutputStream",side_effect=sd.PortAudioError("No driver")),patch("sounddevice.query_devices",side_effect=sd.PortAudioError("No driver")),patch("sounddevice.query_hostapis",return_value=[]):
-        with pytest.raises(RuntimeError,match="Проверьте устройство вывода"):
+        with pytest.raises(RuntimeError,match="Check the output device"):
             play_wav(data,Event())
 
 
 def test_write_failure_does_not_replay_already_spoken_audio():
     data,_=wav_data();output=Mock();output.write.side_effect=sd.PortAudioError("Disconnected")
     with patch("sounddevice.OutputStream",return_value=output) as create,patch("sounddevice.query_devices") as devices:
-        with pytest.raises(RuntimeError,match="отключилось во время озвучки"):play_wav(data,Event())
+        with pytest.raises(RuntimeError,match="disconnected during speech"):play_wav(data,Event())
     create.assert_called_once();devices.assert_not_called();output.close.assert_called_once()
