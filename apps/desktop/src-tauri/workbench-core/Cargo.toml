@@ -16,7 +16,7 @@ crate-type = ["rlib"]
 [dependencies]
 rmcp = { version = "=3.9.0", default-features = false, features = ["client", "transport-child-process", "transport-streamable-http-client-reqwest", "reqwest-tls-no-provider"] }
 process-wrap = { version = "10", features = ["tokio1"] }
-zip = { version = "=9.5.1", default-features = false, features = ["deflate-flate2"] }
+zip = { version = "=9.7.0", default-features = false, features = ["deflate-flate2"] }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 sha2 = "0.11"
 hex = "0.4.3"
