@@ -4,7 +4,7 @@ jsonschema
 PyAutoGUI==0.9.54
 pyperclip
 pygetwindow
-opencv-python==5.0.0.93
+opencv-python==5.1.0.95
 mss
 psutil
 comtypes
