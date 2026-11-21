@@ -107,7 +107,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(body)
                 return
-            body = json.dumps({"models": [{"key": "google/gemma-4-e4b", "type": "llm", "display_name": "QA Gemma", "max_context_length": 32768, "loaded_instances": ([{"id": "qa-gemma", "config": {"context_length": 8192}}] if lifecycle["lmstudio"] else [])}, {"key": "qa/unloaded-chat", "type": "llm", "display_name": "QA Unloaded Chat", "max_context_length": 16384, "loaded_instances": []}]}).encode()
+            body = json.dumps({"models": [{"key": "google/gemma-4-e4b", "type": "llm", "display_name": "QA Gemma", "max_context_length": 32768, "loaded_instances": ([{"id": "qa-gemma", "config": {"context_length": 32768}}] if lifecycle["lmstudio"] else [])}, {"key": "qa/unloaded-chat", "type": "llm", "display_name": "QA Unloaded Chat", "max_context_length": 16384, "loaded_instances": []}]}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
